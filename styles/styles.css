@@ -1,0 +1,792 @@
+/* ===============================
+   Variables
+================================= */
+:root {
+    /* Colores por fletero (fallback si no viene de Firestore) */
+    --color-matias: #db3545;
+    --color-cristian: #FFC006;
+    --color-juan: #80BCFF;
+    --color-alejandro: #135322;
+    --color-ricardo: #fd7e14;
+
+    /* UI */
+    --card-radius: 14px;
+    --icon-btn: 34px;
+    /* tamaño botón-ícono en cards */
+    --icon-size: 18px;
+    /* tamaño del ícono en cards  */
+}
+
+/* ===============================
+   Utilidades de color por fletero
+================================= */
+.matias {
+    color: var(--color-matias) !important;
+}
+
+.cristian {
+    color: var(--color-cristian) !important;
+}
+
+.juan {
+    color: var(--color-juan) !important;
+}
+
+.alejandro {
+    color: var(--color-alejandro) !important;
+}
+
+.ricardo {
+    color: var(--color-ricardo) !important;
+}
+
+.bkg-matias {
+    background: var(--color-matias) !important;
+}
+
+.bkg-cristian {
+    background: var(--color-cristian) !important;
+}
+
+.bkg-juan {
+    background: var(--color-juan) !important;
+}
+
+.bkg-alejandro {
+    background: var(--color-alejandro) !important;
+}
+
+.bkg-ricardo {
+    background: var(--color-ricardo) !important;
+}
+
+/* ===============================
+   Global
+================================= */
+body {
+    background: #f8f9fa;
+    font-family: 'Archivo', sans-serif;
+}
+
+.container-tiny {
+    max-width: 768px;
+}
+
+.texto-blanco {
+    color: #fff !important;
+}
+
+/* ===============================
+   Navbar
+================================= */
+.navbar {
+    background: #000;
+}
+
+.navbar-brand,
+.navbar-title {
+    font-weight: 700;
+    letter-spacing: .2px;
+}
+
+.navbar .btn-icon-nav {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    border: none;
+    color: rgba(255, 255, 255, .65);
+    transition: transform .12s, background-color .12s, color .12s;
+}
+
+.navbar .btn-icon-nav:hover,
+.navbar .btn-icon-nav:focus-visible {
+    color: #fff;
+    background: transparent;
+    transform: translateY(-1px);
+}
+
+/* ===============================
+   Login
+================================= */
+.login-card {
+    margin: 3rem;
+}
+
+.btn-success {
+    width: 100%;
+}
+
+#login-form {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.form-control,
+.form-label {
+    font-size: 1rem;
+}
+
+#login-error {
+    color: #dc3545;
+    font-size: .9rem;
+    text-align: center;
+}
+
+.support {
+    font-size: .9rem;
+    color: #333;
+    margin-top: 18px;
+}
+
+.support a {
+    color: #1b71d7;
+    text-decoration: underline;
+}
+
+.logo-enki {
+    margin: 0 auto 16px;
+    display: block;
+}
+
+/* ===============================
+   Offcanvas / lista de agendas
+================================= */
+.agendas-card {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .06);
+}
+
+.agendas-list {
+    overflow: auto;
+}
+
+.agendas-list .list-group-item {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    padding: .5rem .75rem;
+    margin: .15rem 0;
+    border: 0;
+    border-radius: .75rem;
+    background: #fff;
+    cursor: pointer;
+}
+
+.agendas-list .list-group-item:hover {
+    background: #f6f7f9;
+}
+
+.agendas-list .list-group-item.active {
+    background: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: #fff;
+}
+
+.agendas-list .list-group-item.disabled {
+    pointer-events: none;
+    opacity: .7;
+    cursor: default;
+}
+
+.ag-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: .75rem;
+    background: #e9ecef;
+    color: #495057;
+    flex: 0 0 28px;
+}
+
+.ag-name {
+    font-weight: 600;
+}
+
+.ag-sub {
+    font-size: .8rem;
+    color: #6c757d;
+}
+
+#offcanvasMenu .btn.active {
+    background: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: #fff;
+}
+
+/* ===============================
+   Navegación por días (schedule)
+================================= */
+.day-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.day-chip {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    line-height: 1.1;
+    border-radius: .75rem;
+    background: #fff;
+    border: 1px solid #dee2e6;
+}
+
+.day-chip.btn {
+    flex-direction: column;
+    min-width: 86px;
+    padding: .45rem .6rem;
+    transition: background-color .15s, border-color .15s, transform .15s;
+}
+
+.day-chip .dow {
+    font-weight: 600;
+}
+
+.day-chip .dom {
+    font-size: .82rem;
+}
+
+.day-chip.btn-outline-secondary {
+    color: #6c757d;
+    border-color: #dee2e6;
+}
+
+.day-chip.btn-outline-secondary:hover,
+.day-chip.btn-outline-secondary:focus-visible {
+    color: #fff;
+    background: #6c757d;
+    border-color: #6c757d;
+    box-shadow: 0 0 0 .2rem rgba(108, 117, 125, .25);
+    transform: translateY(-1px);
+}
+
+.day-current {
+    flex: 1 1 auto;
+    text-align: center;
+    padding: .6rem 1rem;
+    border-radius: .75rem;
+    background: var(--color-primario, #198754);
+    color: #fff;
+    font-weight: 600;
+    user-select: none;
+    pointer-events: none;
+}
+
+/* ===============================
+   Card de viaje (schedule)
+================================= */
+.viaje {
+    border: 1px solid var(--color-primario, #135322);
+    border-radius: var(--card-radius);
+    overflow: hidden;
+    box-shadow: 0 2px 10px #0001;
+}
+
+.viaje .barra-lateral {
+    flex: 0 0 92px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    border-right: 1px solid rgba(0, 0, 0, .06);
+}
+
+.hora-badge {
+    color: #fff !important;
+    font-weight: 700;
+    font-size: 1.15rem;
+    padding: .45em .9em;
+    min-width: 64px;
+    text-align: center;
+}
+
+.precio-badge {
+    background: #1f1f1f;
+    color: #fff;
+    padding: .6rem .9rem;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+    align-items: flex-end;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: var(--card-radius);
+}
+
+.precio-badge small {
+    opacity: .9;
+}
+
+.precio-badge h3 {
+    margin: 0;
+    line-height: 1;
+}
+
+.link-whats {
+    text-decoration: none;
+}
+
+.link-whats:hover {
+    text-decoration: underline;
+}
+
+/* ===============================
+   Botones de icono en cards
+================================= */
+.btn-icon {
+    width: var(--icon-btn);
+    height: var(--icon-btn);
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    border: 1px solid var(--bs-border-color);
+    background: transparent;
+    color: var(--bs-body-color);
+    transition: transform .16s, background-color .16s, border-color .16s, color .16s;
+}
+
+.btn-icon .bi {
+    font-size: var(--icon-size);
+}
+
+.btn-icon:hover {
+    background: rgba(13, 110, 253, .10);
+    border-color: rgba(13, 110, 253, .35);
+    color: #0d6efd;
+    transform: translateY(-1px);
+}
+
+.btn-icon:active {
+    transform: translateY(0);
+}
+
+.copy-btn {
+    border: 1px solid rgba(13, 110, 253, .35);
+    background: rgba(13, 110, 253, .06);
+    color: #0d6efd;
+}
+
+.copy-btn:hover {
+    border-color: #0d6efd;
+    background: rgba(13, 110, 253, .12);
+}
+
+.copy-btn.copied {
+    border-color: #198754;
+    background: rgba(25, 135, 84, .1);
+    color: #198754;
+}
+
+.btn-trash {
+    color: #dc3545;
+    border-color: rgba(220, 53, 69, .25);
+}
+
+.btn-trash:hover {
+    background: rgba(220, 53, 69, .10);
+    border-color: rgba(220, 53, 69, .45);
+    color: #dc3545;
+}
+
+.btn-trash:focus-visible {
+    outline: 3px solid rgba(220, 53, 69, .35);
+    outline-offset: 2px;
+    border-radius: 10px;
+}
+
+/* ===============================
+   Chips por tipo de servicio
+================================= */
+.badge-chip {
+    padding: .35rem .6rem;
+    border-radius: 999px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.badge-carga {
+    background: #0d6efd;
+}
+
+.badge-mudanza {
+    background: #fd7e14;
+}
+
+.badge-traslado {
+    background: #20c997;
+}
+
+/* ===============================
+   SUMMARY – Tabs de fleteros (estilo “píldora”)
+================================= */
+#fleterosTabs {
+    display: flex;
+    gap: .5rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: .25rem .5rem;
+    scrollbar-width: thin;
+}
+
+#fleterosTabs .pill-btn {
+    border: 1px solid #e7eaf0;
+    background: #fff;
+    color: var(--tab-color, var(--bs-primary));
+    border-radius: .9rem;
+    padding: .5rem 1rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    box-shadow: 0 2px 10px #0000;
+    transition: transform .15s, box-shadow .15s, background-color .15s, color .15s, border-color .15s;
+}
+
+#fleterosTabs .pill-btn::before {
+    content: "";
+    width: .6rem;
+    height: .6rem;
+    border-radius: 50%;
+    background: var(--tab-color, var(--bs-primary));
+    box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .06);
+}
+
+#fleterosTabs .pill-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .08);
+}
+
+#fleterosTabs .pill-btn.active {
+    background: var(--tab-color, var(--bs-primary));
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .10);
+}
+
+#fleterosTabs .pill-btn.active::before {
+    background: #fff;
+    opacity: .9;
+}
+
+/* “General” gris */
+#fleterosTabs .pill-btn[data-dni="__general"] {
+    --tab-color: #6c757d;
+    background: #f1f3f5;
+    color: #495057;
+    border-color: #e9ecef;
+}
+
+#fleterosTabs .pill-btn[data-dni="__general"].active {
+    background: #343a40;
+    color: #fff;
+    border-color: #343a40;
+}
+
+/* ===============================
+   SUMMARY – Cards y encabezados
+================================= */
+.summary-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 10px #0001;
+    border: 1px solid #eef0f2;
+}
+
+.card-subtitle {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    background: #f3f4f6;
+    border-radius: .75rem;
+    padding: .6rem .8rem;
+}
+
+.card-subtitle .bar {
+    width: 8px;
+    height: 20px;
+    border-radius: 8px;
+    background: var(--card-accent, var(--bs-primary));
+}
+
+.card-subtitle .text {
+    font-weight: 700;
+    color: #222;
+}
+
+/* ===============================
+   SUMMARY – Estados de montos y conceptos
+================================= */
+.sd-amount {
+    font-size: clamp(1.35rem, 2.2vw + 1rem, 2rem);
+    font-weight: 800;
+}
+
+.sd-amount.pos {
+    color: #198754;
+}
+
+.sd-amount.neg {
+    color: #dc3545;
+}
+
+.sd-amount.zero {
+    color: #111;
+}
+
+.concept-list {
+    display: grid;
+    gap: .35rem;
+}
+
+.concept-item {
+    display: flex;
+    gap: .5rem;
+    align-items: baseline;
+}
+
+.concept-item .amt {
+    font-weight: 700;
+}
+
+.concept-item.neg .amt {
+    color: #dc3545;
+}
+
+/* Acciones iguales */
+.sd-actions {
+    display: flex;
+    gap: .75rem;
+}
+
+.sd-actions .btn {
+    flex: 1 1 0;
+}
+
+/* ===============================
+   Loading
+================================= */
+.loading-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 180px;
+    gap: .6rem;
+}
+
+.sd-loading {
+    position: fixed;
+    inset: 56px 0 0 0;
+    display: grid;
+    place-items: center;
+    background: rgba(255, 255, 255, .55);
+    z-index: 1050;
+}
+
+/* ===== HOTFIX: Tabs de fleteros (colores + una sola línea) ===== */
+#fleterosTabs {
+    display: flex;
+    gap: .5rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: .25rem .5rem;
+}
+
+/* usamos .pill-btn (lo que genera tu JS) */
+#fleterosTabs .pill-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    /* quita estilos nativos */
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .45rem .9rem;
+    line-height: 1;
+    font-weight: 600;
+    border-radius: 999px;
+    border: 1px solid #e9ecef;
+    background: #fff;
+    color: var(--tab-color, #0d6efd);
+    box-shadow: none;
+    outline: 0;
+    transition: .15s;
+}
+
+#fleterosTabs .pill-btn::before {
+    content: "";
+    width: .6rem;
+    height: .6rem;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: .95;
+}
+
+/* estado activo: chip lleno con el color del fletero */
+#fleterosTabs .pill-btn.active {
+    background: var(--tab-color, #0d6efd);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .08);
+}
+
+#fleterosTabs .pill-btn.active::before {
+    background: #fff;
+    opacity: .85;
+}
+
+/* “General” en gris */
+#fleterosTabs .pill-btn[data-dni="__general"] {
+    color: #495057;
+    background: #f1f3f5;
+    border-color: #e9ecef;
+}
+
+#fleterosTabs .pill-btn[data-dni="__general"].active {
+    background: #343a40;
+    border-color: #343a40;
+    color: #fff;
+}
+
+/* opcional: pequeño “lift” al hover */
+#fleterosTabs .pill-btn:hover {
+    transform: translateY(-1px);
+}
+
+/* ===== FIX PASTILLAS (summary tabs) ===== */
+#fleterosTabs {
+    display: flex;
+    gap: .5rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: .25rem .5rem;
+}
+
+#fleterosTabs::-webkit-scrollbar {
+    display: none;
+}
+
+#fleterosTabs .nav-item {
+    flex: 0 0 auto;
+}
+
+/* reseteo fuerte de botones dentro de nav */
+#fleterosTabs .nav-link {
+    -webkit-appearance: none;
+    appearance: none;
+    border-radius: 999px !important;
+    padding: .45rem .9rem !important;
+    font-weight: 600;
+    line-height: 1;
+    background: #fff !important;
+    border: 1px solid var(--bs-border-color) !important;
+    color: var(--tab-color, #0d6efd) !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+}
+
+/* puntito de color antes del texto */
+#fleterosTabs .nav-link::before {
+    content: "";
+    display: inline-block;
+    vertical-align: middle;
+    width: .6rem;
+    height: .6rem;
+    margin-right: .45rem;
+    border-radius: 50%;
+    background: var(--tab-color, #0d6efd);
+    box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .06);
+}
+
+/* activo */
+#fleterosTabs .nav-link.active {
+    background: var(--tab-color, #0d6efd) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .08);
+}
+
+#fleterosTabs .nav-link.active::before {
+    background: #fff;
+    opacity: .9;
+}
+
+/* estados */
+#fleterosTabs .nav-link:hover {
+    transform: translateY(-1px);
+    transition: .15s;
+}
+
+#fleterosTabs .nav-link:focus-visible {
+    box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .15) !important;
+}
+
+/* Pastillas (personas) */
+.pill-nav {
+    display: flex;
+    gap: .5rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: .25rem .5rem;
+    scrollbar-width: none;
+}
+
+.pill-nav::-webkit-scrollbar {
+    display: none;
+}
+
+.pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .45rem .9rem;
+    border-radius: 999px;
+    border: 1px solid #e7eaf0;
+    background: #fff;
+    color: #0d6efd;
+    font-weight: 600;
+    line-height: 1;
+    transition: .15s;
+}
+
+.pill .dot {
+    width: .6rem;
+    height: .6rem;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .06);
+}
+
+.pill:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 10px #0001;
+}
+
+.pill.active {
+    background: #0d6efd;
+    color: #fff;
+    border-color: transparent;
+}
+
+.pill--general {
+    color: #495057;
+    background: #f1f3f5;
+    border-color: #e9ecef;
+}
+
+.pill--general.active {
+    background: #343a40;
+    border-color: #343a40;
+    color: #fff;
+}

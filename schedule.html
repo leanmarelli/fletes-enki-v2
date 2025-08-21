@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Agenda Fletero | Gestión Fletes Enki</title>
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="styles/styles.css">
+    <script id="auth-guard" type="module" src="./js/auth-guard.js" data-guard="user"></script>
+
+    <script type="module">
+        import { applyFeatureGates, installActionGuards } from './js/gate.js';
+
+        function boot() {
+            applyFeatureGates();
+            installActionGuards();
+        }
+        function readyThenBoot() {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', boot, { once: true });
+            } else {
+                boot();
+            }
+        }
+        document.addEventListener('auth:ready', readyThenBoot, { once: true });
+        if (window.currentUser) readyThenBoot();
+    </script>
+
+
+
+</head>
+
+<body>
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-dark bg-dark sticky-top shadow-sm">
+        <div class="container container-tiny position-relative">
+            <!-- Back -->
+            <button id="btnBack" type="button" class="btn btn-outline-light btn-icon-nav me-2" aria-label="Volver">
+                <!-- Usá este SVG si no tenés Bootstrap Icons -->
+                <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"
+                    aria-hidden="true">
+                    <path d="M15 6l-6 6 6 6" />
+                </svg>
+            </button>
+    
+            <!-- Título centrado fijo -->
+            <span class="navbar-brand mx-0 position-absolute start-50 translate-middle-x navbar-title">
+                Gestión Fletes Enki
+            </span>
+    
+            <!-- Menú -->
+            <button class="navbar-toggler ms-auto btn-icon-nav border-0" type="button" data-bs-toggle="offcanvas"
+                data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu" aria-label="Abrir menú">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Menú lateral -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasMenu">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title">Menú</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+
+        <div class="offcanvas-body">
+            <ul class="list-unstyled">
+                <li data-visible-for="admin">
+                    <a href="index.html" class="btn btn-outline-dark w-100 mb-2">Inicio</a>
+                </li>
+
+                <li data-visible-for="user">
+                    <a id="linkMiAgenda" href="#" class="btn btn-outline-dark w-100 mb-2">Mi agenda</a>
+                </li>
+
+                <li data-visible-for="admin">
+                    <a href="new-trip.html" class="btn btn-outline-dark w-100 mb-2">Cargar agenda</a>
+                </li>
+
+                <li data-visible-for="admin">
+                    <a class="btn btn-outline-dark w-100 mb-2" data-bs-toggle="collapse" href="#collapseAgendasMenu"
+                        role="button" aria-controls="collapseAgendasMenu">Ver agendas</a>
+
+                    <div class="collapse mb-4" id="collapseAgendasMenu">
+                        <div class="agendas-card p-2 bg-light border rounded-3">
+                            <div id="listaFleterosMenu" class="list-group list-group-flush agendas-list"></div>
+                        </div>
+                    </div>
+                </li>
+
+                <li>
+                    <a href="summary-data.html" class="btn btn-outline-dark w-100 mb-2">Resumen</a>
+                </li>
+
+                <li>
+                    <a href="login.html?logout=1" data-logout class="btn btn-outline-danger w-100">Cerrar sesión</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+
+    <!-- CONTENIDO -->
+    <div class="container container-tiny my-4">
+        <!-- Titulo de la agenda -->
+        <h2 id="titulo-agenda" class="text-center mb-4"></h2>
+
+        <div class="day-nav" id="dia-navigator"></div>
+
+
+        <!-- Cards de viajes -->
+        <div id="viajes-dia"></div>
+    </div>
+
+    <!-- Modal: Confirmar eliminación -->
+    <div class="modal fade" id="modalEliminarViaje" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" id="formEliminarViaje">
+                <div class="modal-header">
+                    <h5 class="modal-title">Eliminar viaje</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">Vas a eliminar este viaje. Esta acción no se puede deshacer.</p>
+                    <ul class="small list-unstyled mb-0">
+                        <li><b>Cliente:</b> <span id="delCliente">-</span></li>
+                        <li><b>Horario:</b> <span id="delHorario">-</span></li>
+                        <li><b>Carga:</b> <span id="delCarga">-</span></li>
+                        <li><b>Descarga:</b> <span id="delDescarga">-</span></li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button id="btnConfirmarEliminar" type="submit" class="btn btn-danger">Eliminar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modales de resultado -->
+    <div class="modal fade" id="modalSaveSuccess" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-body text-center p-4">
+                    <div class="mb-2"><i class="bi bi-check-circle-fill" style="font-size:3rem;color:#198754"></i></div>
+                    <h5 class="mb-1">¡Viaje guardado!</h5>
+                    <p id="successSubtitle" class="text-muted small mb-4">Se creó el servicio correctamente.</p>
+                    <div class="d-grid">
+                        <a id="linkVerAgenda" class="btn btn-success" href="#">Ver agenda</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal fade" id="modalSaveError" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-body text-center p-4">
+                    <div class="mb-2"><i class="bi bi-x-circle-fill" style="font-size:3rem;color:#dc3545"></i></div>
+                    <h5 class="mb-1">No se pudo guardar</h5>
+                    <p id="errorDetails" class="text-muted small mb-4">Reintentá en unos segundos.</p>
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Entendido</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="js/firebase.js"></script>
+    <script type="module" src="js/schedule.js"></script>
+    <script type="module" src="js/index.js"></script>
+
+
+</body>
+
+</html>

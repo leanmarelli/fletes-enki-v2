@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gestión Fletes Enki</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700&display=swap" rel="stylesheet">
+    <script id="auth-guard" type="module" src="./js/auth-guard.js" data-guard="admin"></script>
+
+    <script type="module">
+        import { applyFeatureGates, installActionGuards } from './js/gate.js';
+
+        function boot() {
+            applyFeatureGates();
+            installActionGuards();
+        }
+
+        function readyThenBoot() {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', boot, { once: true });
+            } else {
+                boot();
+            }
+        }
+
+        // Correr cuando auth esté lista… y además esperar DOM
+        document.addEventListener('auth:ready', readyThenBoot, { once: true });
+
+        // Si auth ya estaba lista antes de que este script cargue
+        if (window.currentUser) readyThenBoot();
+    </script>
+
+
+
+
+</head>
+
+<body>
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-dark bg-dark sticky-top shadow-sm">
+        <div class="container container-tiny position-relative">
+            <!-- Back -->
+            <button id="btnBack" type="button" class="btn btn-outline-light btn-icon-nav me-2" aria-label="Volver">
+                <!-- Usá este SVG si no tenés Bootstrap Icons -->
+                <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"
+                    aria-hidden="true">
+                    <path d="M15 6l-6 6 6 6" />
+                </svg>
+            </button>
+    
+            <!-- Título centrado fijo -->
+            <span class="navbar-brand mx-0 position-absolute start-50 translate-middle-x navbar-title">
+                Gestión Fletes Enki
+            </span>
+    
+            <!-- Menú -->
+            <button class="navbar-toggler ms-auto btn-icon-nav border-0" type="button" data-bs-toggle="offcanvas"
+                data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu" aria-label="Abrir menú">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Menú lateral -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasMenu">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title">Menú</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+    
+        <div class="offcanvas-body">
+            <ul class="list-unstyled">
+                <li data-visible-for="admin">
+                    <a href="index.html" class="btn btn-outline-dark w-100 mb-2">Inicio</a>
+                </li>
+    
+                <li data-visible-for="user"> 
+                    <a id="linkMiAgenda" href="#" class="btn btn-outline-dark w-100 mb-2">Mi agenda</a>
+                </li>
+    
+                <li data-visible-for="admin">
+                    <a href="new-trip.html" class="btn btn-outline-dark w-100 mb-2">Cargar agenda</a>
+                </li>
+    
+                <li data-visible-for="admin">
+                    <a class="btn btn-outline-dark w-100 mb-2" data-bs-toggle="collapse" href="#collapseAgendasMenu"
+                        role="button" aria-controls="collapseAgendasMenu">Ver agendas</a>
+    
+                    <div class="collapse mb-4" id="collapseAgendasMenu">
+                        <div class="agendas-card p-2 bg-light border rounded-3">
+                            <div id="listaFleterosMenu" class="list-group list-group-flush agendas-list"></div>
+                        </div>
+                    </div>
+                </li>
+    
+                <li>
+                    <a id="linkMiResumen" href="#" class="btn btn-outline-dark w-100 mb-2">Resumen</a>
+                </li>
+    
+                <li>
+                    <a href="login.html?logout=1" data-logout class="btn btn-outline-danger w-100">Cerrar sesión</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <div class="container container-tiny my-4">
+        <!-- Bienvenida -->
+        <p class="text-center">Bienvenido a su gestión comercial de los servicios.</p>
+
+        <!-- Tarjeta Cargar agenda -->
+        <div class="card mb-3">
+            <div class="card-body text-center">
+                <h5 class="card-title">Cargar agenda</h5>
+                <p class="card-text">Por cada persona se cargará la agenda de viajes.</p>
+                <button class="btn btn-success" onclick="window.location.href='new-trip.html'">
+                    Cargar nuevo viaje
+                </button>
+            </div>
+        </div>
+
+        <!-- Tarjeta Agendas -->
+        <div class="card mb-3">
+            <div class="card-body text-center">
+                <h5 class="card-title">Agendas</h5>
+                <p class="card-text">Visualizar agendas de cada persona asignada.</p>
+                <select class="form-select mb-2" id="fletero">
+                    <option>Seleccionar fletero</option>
+                </select>
+
+            </div>
+        </div>
+
+
+        <!-- Tarjeta Resumen general -->
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Resumen general</h5>
+                <p class="card-text">Detalle de ganancias por cada día, semana y mes de servicio.</p>
+                <button class="btn btn-success" onclick="window.location.href='summary-data.html'">
+                    Obtener datos
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Firebase -->
+    <script type="module" src="js/firebase.js"></script>
+    <script type="module" src="js/index.js"></script>
+
+    <!-- Select -->
+    <script type="module">
+        const fleteroSelect = document.getElementById("fletero");
+
+        fleteroSelect.addEventListener("change", () => {
+            const dni = fleteroSelect.value;
+            if (dni) {
+                const baseUrl = window.location.origin;
+                window.location.href = `${baseUrl}/schedule.html?dni=${dni}`;
+            }
+        });
+    </script>
+</body>
+
+
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login - Gestión Fletes Enki</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700&display=swap" rel="stylesheet">
+
+
+</head>
+
+<body>
+    <div class="login-card">
+        <!-- LOGO (poné la src que quieras después) -->
+        <img src="img/logo.png" alt="Logo de enki" class="logo-enki">
+
+        <h5 class="text-center fw-bold mb-3 mt-2">
+            Bienvenido a la plataforma de gestión de Fletes Enki.
+        </h5>
+        <p class="text-center mb-4" style="font-size:.96rem;">
+            Por favor ingresa tu número de documento para ver la agenda de la semana
+        </p>
+
+        <form id="login-form" autocomplete="off">
+            <div class="mb-3">
+                <label for="dni" class="form-label">DNI sin puntos ni espacios:</label>
+                <input type="text" class="form-control" id="dni" name="dni" required placeholder="Ej: 37790599">
+            </div>
+            <div class="mb-4">
+                <label for="patente" class="form-label">Patente de tu vehículo sin espacios:</label>
+                <input type="text" class="form-control" id="patente" name="patente" required placeholder="Ej: AB123CD">
+            </div>
+            <button type="submit" class="btn btn-success mb-2">Ingresar</button>
+        </form>
+
+        <p id="login-error" class="text-danger small my-2" style="display:none;"></p>
+
+        <div class="support text-center">
+            Si tenés problemas para ingresar por favor contactate con
+            <a href="tel:1140808320">1140808320</a>.
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="js/login.js"></script>
+    <!-- en <head> o al inicio del <body> -->
+</body>
+
+</html>
