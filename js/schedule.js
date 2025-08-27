@@ -280,12 +280,19 @@ async function cargarAgenda(fechastr) {
     const country = (fletero.country || fletero.countryIso || "AR").toUpperCase();
     const viajes = sortPorHorario(viajesRaw);
 
-    // 👇 nuevo: detectar si el usuario logueado es admin
+    // ...
     const isAdmin = (window?.currentUser?.permission || "").toLowerCase() === "admin";
 
-    // 👇 pasar isAdmin a render
+    // Render principal
     renderViajes(viajes, fletero.colorHex, feePct, country, isAdmin);
     renderDayNavigator(fechastr, (newDate) => cargarAgenda(newDate));
+
+    // Nuevo: sincronizar date-picker y mostrar resumen del día
+    const dp = document.getElementById("datePicker");
+    if (dp) dp.value = fechastr;
+    updateDateChipLabel(fechastr);
+
+
 }
 
 
@@ -296,8 +303,36 @@ document.addEventListener("DOMContentLoaded", () => {
     const hoy = formatDateToYYYYMMDD(new Date());
     const modalEl = document.getElementById("modalEliminarViaje");
     if (modalEl && window.bootstrap) modalEliminar = new bootstrap.Modal(modalEl);
+
+    const datePicker = document.getElementById("datePicker");
+    const dateChip = document.getElementById("dateChip");
+    const btnHoy = document.getElementById("btnHoy");
+
+    if (datePicker) {
+        datePicker.value = hoy;
+        updateDateChipLabel(hoy);
+
+        datePicker.addEventListener("change", (e) => {
+            const v = e.target.value;
+            if (v) cargarAgenda(v);
+        });
+    }
+
+    if (dateChip && datePicker) {
+        dateChip.addEventListener("click", () => {
+            // Abre el selector nativo manteniendo accesibilidad
+            if (typeof datePicker.showPicker === "function") datePicker.showPicker();
+            else datePicker.click();
+        });
+    }
+
+    if (btnHoy) {
+        btnHoy.addEventListener("click", () => cargarAgenda(formatDateToYYYYMMDD(new Date())));
+    }
+
     cargarAgenda(hoy);
 });
+
 
 // ----------------------------------------------------
 // Interacciones (eliminar / copiar)
@@ -366,3 +401,48 @@ if (formEliminar) {
         }
     });
 }
+
+function renderResumenDia(viajes, feePct = 0) {
+    const el = document.getElementById("resumen-dia");
+    if (!el) return;
+
+    const totalViajes = viajes.length;
+    const totalBruto = viajes.reduce((acc, v) => acc + (Number(v?.cliente?.precioServicio) || 0), 0);
+
+    // Si quisieras mostrar neto con comisión del fletero:
+    // const totalNeto = feePct ? Math.round(totalBruto * (1 - feePct/100)) : totalBruto;
+
+    el.innerHTML = `
+    <div class="card border-0 shadow-sm">
+      <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-truck"></i>
+          <div>
+            <div class="text-muted small">Viajes del día</div>
+            <div class="fs-5 fw-bold mb-0">${totalViajes}</div>
+          </div>
+        </div>
+
+        <div class="vr d-none d-md-block"></div>
+
+        <div>
+          <div class="text-muted small">Total recaudado (bruto)</div>
+          <div class="fs-4 fw-bold mb-0">$${formatMoney(totalBruto)}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Formatea 2025-08-26 -> 26/08/2025
+function formatYYYYMMDDtoDDMMYYYY(str = "") {
+    const [y, m, d] = (str || "").split("-");
+    if (!y || !m || !d) return str || "";
+    return `${d}/${m}/${y}`;
+}
+
+function updateDateChipLabel(yyyy_mm_dd) {
+    const lab = document.getElementById("dateChipLabel");
+    if (lab) lab.textContent = formatYYYYMMDDtoDDMMYYYY(yyyy_mm_dd);
+}
+

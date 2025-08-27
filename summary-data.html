@@ -116,14 +116,21 @@
     <!-- selector de periodo -->
     <div class="container container-tiny mb-2">
         <div id="rangeBar" class="d-flex justify-content-center align-items-center gap-2">
-            <button id="btnPrev" class="btn btn-outline-secondary btn-sm" title="Semana anterior">
+            <button id="btnPrev" class="btn btn-outline-secondary day-chip date-chip flex-row" title="Semana anterior" style="min-width: fit-content;"> 
                 <i class="bi bi-chevron-left"></i>
             </button>
-            <input id="rangeDate" type="date" class="form-control form-control-sm" style="max-width: 180px" />
-            <button id="btnNext" class="btn btn-outline-secondary btn-sm" title="Semana siguiente">
+            <button id="rangeChip" type="button" class="btn btn-outline-secondary day-chip date-chip flex-row" aria-haspopup="dialog"
+                aria-controls="rangeDate">
+                <i class="bi bi-calendar3 me-2"></i>
+                <span id="rangeChipLabel"></span>
+            </button>
+            
+            <input id="rangeDate" type="date" class="visually-hidden" aria-label="Elegir fecha">
+
+            <button id="btnNext" class="btn btn-outline-secondary day-chip date-chip flex-row" title="Semana siguiente" style="min-width: fit-content;">
                 <i class="bi bi-chevron-right"></i>
             </button>
-            <button id="btnToday" class="btn btn-link btn-sm">Hoy</button>
+            <button id="btnToday" class="btn btn-outline-secondary day-chip btn-sm" style="min-width: fit-content;">Hoy</button>
         </div>
     </div>
 

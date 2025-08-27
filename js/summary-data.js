@@ -5,6 +5,16 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 import { applyFeatureGates, installActionGuards, isAdmin } from "./gate.js";
 
+function toDMY(ymdStr) {
+    const [Y, M, D] = (ymdStr || "").split("-");
+    if (!Y || !M || !D) return "--/--/----";
+    return `${String(D).padStart(2, "0")}/${String(M).padStart(2, "0")}/${Y}`;
+}
+function updateRangeChipLabel(ymdStr) {
+    const lab = document.getElementById("rangeChipLabel");
+    if (lab) lab.textContent = toDMY(ymdStr);
+}
+
 /* ───────────────────────────────────────────────────────────
    Firebase
 ─────────────────────────────────────────────────────────── */
@@ -488,11 +498,22 @@ async function boot() {
     const btnNext = document.getElementById("btnNext");
     const btnToday = document.getElementById("btnToday");
 
+    /* NUEVO */ const rangeChip = document.getElementById("rangeChip");
+
     // set inicial: hoy
     const y = CURRENT_DATE.getFullYear();
     const m = String(CURRENT_DATE.getMonth() + 1).padStart(2, "0");
     const d = String(CURRENT_DATE.getDate()).padStart(2, "0");
     if (inp) inp.value = `${y}-${m}-${d}`;
+
+    /* NUEVO: mostrar fecha en el chip */
+    updateRangeChipLabel(inp?.value || "");
+
+    /* NUEVO: abrir el picker al clickear el chip */
+    rangeChip?.addEventListener("click", () => {
+        if (typeof inp?.showPicker === "function") inp.showPicker();
+        else inp?.click();
+    });
 
     const setAndRefresh = (dateObj) => {
         CURRENT_DATE = dateObj;
@@ -502,6 +523,8 @@ async function boot() {
             const dd = String(dateObj.getDate()).padStart(2, "0");
             inp.value = `${yy}-${mm}-${dd}`;
         }
+        /* NUEVO: actualizar chip */
+        updateRangeChipLabel(inp?.value || "");
         setPersona(CURRENT);
     };
 

@@ -106,6 +106,21 @@
 
     <!-- CONTENIDO -->
     <div class="container container-tiny my-4">
+        <!-- Selector de fecha (look & feel de day-chip) -->
+        <div class="date-toolbar d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+            <button id="dateChip" type="button" class="btn btn-outline-secondary day-chip date-chip flex-row" aria-haspopup="dialog"
+                aria-controls="datePicker">
+                <i class="bi bi-calendar3 me-2"></i>
+                <span id="dateChipLabel"></span>
+            </button>
+        
+            <button id="btnHoy" class="btn btn-outline-secondary day-chip btn-sm">Hoy</button>
+        
+            <!-- Input nativo: accesible pero oculto visualmente -->
+            <input type="date" id="datePicker" class="visually-hidden" aria-label="Elegir fecha">
+        </div>
+
+
         <!-- Titulo de la agenda -->
         <h2 id="titulo-agenda" class="text-center mb-4"></h2>
 
@@ -114,6 +129,10 @@
 
         <!-- Cards de viajes -->
         <div id="viajes-dia"></div>
+
+        <!-- Resumen del día -->
+        <div id="resumen-dia" class="mt-4"></div>
+
     </div>
 
     <!-- Modal: Confirmar eliminación -->
