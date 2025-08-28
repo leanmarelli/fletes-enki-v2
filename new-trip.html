@@ -227,7 +227,7 @@
                         <label for="telefono" class="form-label">Teléfono</label>
                         <div class="input-group">
                             <span class="input-group-text min">+54</span>
-                            <input type="tel" id="telefono" class="form-control" placeholder="91123456890" required />
+                            <input type="tel" id="telefono" class="form-control" placeholder="1123456890" required />
                         </div>
                         <div class="hint mt-1">Ingresá el número sin espacios.</div>
                     </div>
@@ -271,11 +271,11 @@
                 <div class="row g-3">
                     <div class="col-12 col-md-8">
                         <label for="dirCarga" class="form-label">Dirección de carga</label>
-                        <input type="text" id="dirCarga" class="form-control" placeholder="Calle falsa 123" required />
+                        <input type="text" id="dirCarga" class="form-control" placeholder="Av. Maipu 1200" required />
                     </div>
                     <div class="col-12 col-md-4">
                         <label for="locCarga" class="form-label">Localidad de carga</label>
-                        <input type="text" id="locCarga" class="form-control" placeholder="CABA" required />
+                        <input type="text" id="locCarga" class="form-control" placeholder="Lezama" required />
                     </div>
 
                     <div class="col-12">
@@ -286,12 +286,12 @@
 
                     <div class="col-12 col-md-8">
                         <label for="dirDescarga" class="form-label">Dirección de descarga</label>
-                        <input type="text" id="dirDescarga" class="form-control" placeholder="Calle real 456"
+                        <input type="text" id="dirDescarga" class="form-control" placeholder="Rafael Hernandez 456"
                             required />
                     </div>
                     <div class="col-12 col-md-4">
                         <label for="locDescarga" class="form-label">Localidad de descarga</label>
-                        <input type="text" id="locDescarga" class="form-control" placeholder="CABA" required />
+                        <input type="text" id="locDescarga" class="form-control" placeholder="Tigre" required />
                     </div>
 
                     <div class="col-12 col-md-6">
@@ -346,6 +346,48 @@
         </form>
     </div>
 
+    <div id="appLoading" class="app-loading">
+        <div class="spinner"></div>
+    </div>
+
+    <div class="modal fade" id="modalSaveSuccess" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0">
+                <div class="modal-header">
+                    <h5 class="modal-title">Viaje guardado</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="successSubtitle" class="mb-2"></p>
+                    <p class="mb-0">¿Querés ir a la agenda del fletero?</p>
+                </div>
+                <div class="modal-footer" style="flex-wrap: nowrap !important;">
+                    <button class="btn btn-outline-secondary" data-bs-dismiss="modal" >Cancelar</button>
+                    <a id="linkVerAgenda" class="btn btn-success" href="#">Ver agenda</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de error opcional (tu JS ya lo contempla) -->
+    <div class="modal fade" id="modalSaveError" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0">
+                <div class="modal-header">
+                    <h5 class="modal-title">No se pudo guardar</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="errorDetails" class="mb-0">Reintentá en unos segundos.</p>
+                </div>
+                <div class="modal-footer" style="flex-wrap: nowrap !important;">
+                    <button class="btn btn-primary" data-bs-dismiss="modal">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
     <!-- JS LIBS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
@@ -354,7 +396,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/timepicker/1.3.5/jquery.timepicker.min.js"></script>
 
     <!-- Firebase + lógica de la página (sin cambios) -->
-    <script type="module" src="js/firebase.js"></script>
     <script type="module" src="js/new-trip.js"></script>
     <script type="module" src="js/index.js"></script>
 </body>

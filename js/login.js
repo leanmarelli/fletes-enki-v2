@@ -1,28 +1,14 @@
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+// js/login.js
+import { db, doc, getDoc, showLoading } from "./utils.js";
 
-// --- Firebase (evita doble init) ---
-const firebaseConfig = {
-  apiKey: "AIzaSyDhmZ_5e4prHLW7nQp_VY0KoTw9ObM7qVQ",
-  authDomain: "gestion-fletes-enki.firebaseapp.com",
-  projectId: "gestion-fletes-enki",
-  storageBucket: "gestion-fletes-enki.firebasestorage.app",
-  messagingSenderId: "1091950041596",
-  appId: "1:1091950041596:web:b6c0e2942f92eafad93a79"
-};
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// --- helpers ---
 const TTL = 7 * 24 * 60 * 60 * 1000;
 const ADMIN_PAGE_RE = /\/(index|new\-trip|admin|config|panel)\.html$/i;
 
 function resolveNext(href) {
-  // Soporta next absoluto (/FLETENKI/index.html) o relativo (schedule.html)
   try {
     if (!href) return null;
     const decoded = decodeURIComponent(href);
-    return decoded.startsWith('/')
+    return decoded.startsWith("/")
       ? new URL(decoded, location.origin).href
       : new URL(decoded, location.href).href;
   } catch {
@@ -41,8 +27,7 @@ function redirectByRole({ next, isAdmin, dni }) {
     }
     return;
   }
-  // sin next válido
-  if (isAdmin) location.replace('index.html');
+  if (isAdmin) location.replace("index.html");
   else location.replace(`schedule.html?dni=${encodeURIComponent(dni)}`);
 }
 
@@ -52,37 +37,35 @@ function showError(el, msg) {
   el.style.display = "block";
 }
 
-// --- main ---
-window.addEventListener('DOMContentLoaded', () => {
-  // NO incluyas auth-guard en login.html
+window.addEventListener("DOMContentLoaded", () => {
   const loginForm = document.getElementById("login-form");
   const errorMsg = document.getElementById("login-error");
   const qs = new URLSearchParams(location.search);
 
   if (!loginForm) {
-    console.error('login.js: #login-form no encontrado. ¿El script está en el <body> o con defer?');
+    console.error("login.js: #login-form no encontrado.");
     return;
   }
 
-  // 1) logout por query
+  // logout
   if (qs.get("logout") === "1") {
     try { localStorage.removeItem("fletenki:user"); } catch { }
     history.replaceState({}, "", location.pathname);
-    // seguimos: que el usuario vea el form vacío
   }
 
-  // 2) auto-redirect si ya hay sesión no vencida
+  // sesión vigente → redirigir
   try {
     const sess = JSON.parse(localStorage.getItem("fletenki:user") || "null");
     if (sess?.dni && sess?.ts && (Date.now() - sess.ts) < TTL) {
       const isAdmin = String(sess.permission || "").toLowerCase() === "admin";
       redirectByRole({ next: qs.get("next"), isAdmin, dni: sess.dni });
-      return; // importante: no sigas mostrando el form
+      return;
     }
   } catch { }
 
-  // 3) submit
+  // submit
   loginForm.addEventListener("submit", async (e) => {
+    showLoading(true);
     e.preventDefault();
     if (errorMsg) errorMsg.style.display = "none";
 
@@ -105,20 +88,19 @@ window.addEventListener('DOMContentLoaded', () => {
 
       const isAdmin = String(data.permission || "").toLowerCase() === "admin";
 
-      // guardar sesión (incluye permission)
       localStorage.setItem("fletenki:user", JSON.stringify({
         dni,
         patent: patente,
-        permission: isAdmin ? 'admin' : 'user',
+        permission: isAdmin ? "admin" : "user",
         ts: Date.now()
       }));
 
-      // redirigir según rol / next
       redirectByRole({ next, isAdmin, dni });
-
     } catch (err) {
       console.error("Error en login:", err);
       showError(errorMsg, "❌ Error de conexión, intenta de nuevo");
+    } finally {
+      showLoading(false);
     }
   });
 });

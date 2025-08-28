@@ -1,18 +1,9 @@
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
-import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+// js/new-trip.js
+// - Usa db centralizado (utils.js)
+// - Guarda campos denormalizados: fecha (YYYY-MM-DD), y, m, ym, weekStart, importe (Number)
+// - Muestra modal de éxito con link a la agenda del fletero
 
-const firebaseConfig = {
-    apiKey: "AIzaSyDhmZ_5e4prHLW7nQp_VY0KoTw9ObM7qVQ",
-    authDomain: "gestion-fletes-enki.firebaseapp.com",
-    projectId: "gestion-fletes-enki",
-    storageBucket: "gestion-fletes-enki.firebasestorage.app",
-    messagingSenderId: "1091950041596",
-    appId: "1:1091950041596:web:b6c0e2942f92eafad93a79"
-};
-
-// ✅ Evitar doble init (porque también cargás js/firebase.js)
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-const db = getFirestore(app);
+import { db, collection, addDoc, showLoading } from "./utils.js";
 
 let modalExito, modalError;
 
@@ -38,7 +29,6 @@ function bootModals() {
     }
 }
 
-// ✅ Correr ahora o esperar DOM si hace falta
 function readyThenBoot() {
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", bootModals, { once: true });
@@ -48,10 +38,22 @@ function readyThenBoot() {
 }
 readyThenBoot();
 
+// Helpers fecha
+function ymdOf(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function mondayOf(ymdStr) {
+    const [Y, M, D] = (ymdStr || "").split("-").map(Number);
+    const d = new Date(Y, (M || 1) - 1, D || 1);
+    const dow = d.getDay(); // 0=dom..6=sáb
+    const delta = (dow === 0 ? -6 : 1 - dow);
+    d.setDate(d.getDate() + delta);
+    return ymdOf(d);
+}
+
 // ------- Submit -------
 const form = document.getElementById("new-trip-form");
 form.addEventListener("submit", async (e) => {
-    // FRENAR el envío/reload
     e.preventDefault();
     e.stopPropagation();
 
@@ -76,7 +78,7 @@ form.addEventListener("submit", async (e) => {
     const viaje = {
         cliente: {
             horario: document.getElementById("hora").value,
-            fecha: document.getElementById("fecha").value,
+            fecha: document.getElementById("fecha").value, // YYYY-MM-DD
             nombre: document.getElementById("cliente").value,
             telefono: document.getElementById("telefono").value,
             tipoServicio: document.querySelector('input[name="tipoServicio"]:checked')?.value || "",
@@ -97,29 +99,18 @@ form.addEventListener("submit", async (e) => {
 
     try {
         const ref = collection(db, "viajes", fletero, "items");
-        // ====== denormalizaciones para reportes ======
+
+        // ====== Denormalizaciones para reportes/queries rápidas ======
         const fechaYMD = document.getElementById("fecha").value; // "YYYY-MM-DD"
-
-        // calcula el lunes de esa semana
-        function ymdOf(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
-        function mondayOf(ymdStr) {
-            const [Y, M, D] = fechaYMD.split("-").map(Number);
-            const d = new Date(Y, M - 1, D);
-            const dow = d.getDay(); // 0=dom..6=sab
-            const delta = (dow === 0 ? -6 : 1 - dow);
-            d.setDate(d.getDate() + delta);
-            return ymdOf(d);
-        }
-
         const [Y, M] = fechaYMD.split("-").map(Number);
 
-        viaje.fecha = fechaYMD;                     // rango por string funciona bien
+        viaje.fecha = fechaYMD;                     // clave para consultas por rango
         viaje.y = Y;
         viaje.m = M;
-        viaje.ym = `${Y}-${String(M).padStart(2, "0")}`;
-        viaje.weekStart = mondayOf(fechaYMD);
-        viaje.importe = Number(document.getElementById("precioServicio").value) || 0;
-        // =============================================
+        viaje.ym = `${Y}-${String(M).padStart(2, "0")}`; // p.ej. 2025-08
+        viaje.weekStart = mondayOf(fechaYMD);                 // lunes de esa semana
+        viaje.importe = Number(document.getElementById("precioServicio").value) || 0; // numérico
+        // =============================================================
 
         await addDoc(ref, viaje);
 
@@ -143,5 +134,6 @@ form.addEventListener("submit", async (e) => {
     } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = prevHtml;
+        showLoading(false);
     }
 });

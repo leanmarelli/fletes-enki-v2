@@ -1,10 +1,148 @@
 // js/summary-data.js
-import { getApps, getApp, initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
-import {
-    getFirestore, collection, getDocs, query, where
-} from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
-import { applyFeatureGates, installActionGuards, isAdmin } from "./gate.js";
+// - Usa db centralizado (utils.js)
+// - Optimiza Firestore: consultas acotadas por rango (fecha >= start && fecha <= end) + orderBy("fecha")
+// - Cachea en memoria por rango (RANGE_CACHE)
+// - Elimina "full scans" de subcolecciones
 
+import { applyFeatureGates, installActionGuards, isAdmin,  } from "./gate.js";
+import { db, collection, getDocs, query, where, orderBy, showLoading } from "./utils.js";
+
+// --- al principio del archivo ---
+let __booted = false;
+let CURRENT_DATE = new Date();
+const KEY_GENERAL = "__general";
+let FLETEROS = [];
+let CURRENT = null;
+
+// 👇 asegurate de que sea function declaration (hoisted), no const setPersona = …
+async function setPersona(dni) {
+    CURRENT = dni;
+    setActivePill(dni);
+    showLoading(true);
+
+    const d = CURRENT_DATE;
+    const sums = (dni === KEY_GENERAL) ? await sumsForGeneral(d) : await sumsForOne(dni, d);
+    renderCards(dni, sums, accentFor(dni));
+
+    showLoading(false);
+}
+
+// …(tus otras function declarations: loadFleteros, viajesEnRango, renderCards, etc.)
+
+// --- boot declarado como function declaration ---
+async function boot() {
+    showLoading(true);
+    if (__booted) return; __booted = true;
+
+    applyFeatureGates();
+    installActionGuards();
+
+    // Modal (si existe)
+    const modal = document.querySelector("#ajusteModal");
+    if (modal && window.bootstrap) bootstrap.Modal.getOrCreateInstance(modal);
+
+    // Fleteros y tabs
+    FLETEROS = await loadFleteros();
+    renderPersonTabs(FLETEROS);
+
+    // Tab inicial
+    const qs = new URLSearchParams(location.search);
+    const dniQ = qs.get("dni");
+    let initial = KEY_GENERAL;
+
+    if (dniQ && !isAdmin()) {
+        const mine = FLETEROS.find(x => x.dni === dniQ);
+        if (mine) {
+            const wrap = document.querySelector("#personasTabs");
+            wrap.innerHTML = "";
+            const btn = document.createElement("button");
+            btn.className = "pill active";
+            btn.type = "button";
+            btn.dataset.id = mine.dni;
+            btn.innerHTML = `<span class="dot" style="background:${mine.colorHex}"></span> ${first(mine.name)}`;
+            wrap.appendChild(btn);
+            initial = mine.dni;
+        }
+    } else if (dniQ && (isAdmin() || FLETEROS.some(x => x.dni === dniQ))) {
+        initial = dniQ;
+    }
+
+    if (!document.querySelector("#personasTabs .pill.active")) {
+        document.querySelector("#personasTabs .pill")?.classList.add("active");
+    }
+    showLoading(false);
+    await setPersona(initial);
+
+    // ----- barra de periodo -----
+    const inp = document.getElementById("rangeDate");
+    const btnPrev = document.getElementById("btnPrev");
+    const btnNext = document.getElementById("btnNext");
+    const btnToday = document.getElementById("btnToday");
+    const rangeChip = document.getElementById("rangeChip");
+
+    const y = CURRENT_DATE.getFullYear();
+    const m = String(CURRENT_DATE.getMonth() + 1).padStart(2, "0");
+    const d = String(CURRENT_DATE.getDate()).padStart(2, "0");
+    if (inp) inp.value = `${y}-${m}-${d}`;
+    updateRangeChipLabel(inp?.value || "");
+
+    const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent)
+        || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+    const setAndRefresh = (dateObj) => {
+        CURRENT_DATE = dateObj;
+        const s = ymd(dateObj);
+        if (inp) inp.value = s;
+        updateRangeChipLabel(s);
+        setPersona(CURRENT);
+    };
+
+    inp?.addEventListener("change", () => {
+        const [Y, M, D] = (inp.value || "").split("-").map(Number);
+        if (Y && M && D) setAndRefresh(new Date(Y, M - 1, D));
+    });
+
+    if (isIOS) {
+        try { inp.type = "date"; } catch { }
+        inp.classList.remove("visually-hidden");
+        inp.classList.add("ios-date-overlay");
+        rangeChip?.setAttribute("aria-hidden", "true");
+        rangeChip?.setAttribute("tabindex", "-1");
+    } else {
+        rangeChip?.addEventListener("click", (e) => {
+            e.preventDefault();
+            if (typeof inp.showPicker === "function") inp.showPicker();
+            else { inp.focus(); inp.click(); }
+        });
+    }
+
+    const addDays = (base, n) => { const x = new Date(base); x.setDate(x.getDate() + n); return x; };
+    btnPrev?.addEventListener("click", () => setAndRefresh(addDays(CURRENT_DATE, -7)));
+    btnNext?.addEventListener("click", () => setAndRefresh(addDays(CURRENT_DATE, 7)));
+    btnToday?.addEventListener("click", () => setAndRefresh(new Date()));
+}
+
+// --- engancha boot SOLO después de auth y DOM ---
+function domReady(cb) {
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", cb, { once: true });
+    else cb();
+}
+document.addEventListener("auth:ready", () => domReady(boot), { once: true });
+if (window.currentUser) domReady(boot);
+
+
+// ───────────────────────────────────────────────────────────
+// ESTADO (arriba para evitar TDZ)
+// ───────────────────────────────────────────────────────────
+
+// Ajustes en memoria (por ahora)
+const AJ = Object.create(null);
+const getAjustes = dni => AJ[dni] ?? (AJ[dni] = { week: [], month: [] });
+const sumAjustes = arr => arr.reduce((a, x) => a + (Number(x.monto) || 0), 0);
+
+// ───────────────────────────────────────────────────────────
+// Helpers UI + formato
+// ───────────────────────────────────────────────────────────
 function toDMY(ymdStr) {
     const [Y, M, D] = (ymdStr || "").split("-");
     if (!Y || !M || !D) return "--/--/----";
@@ -15,23 +153,6 @@ function updateRangeChipLabel(ymdStr) {
     if (lab) lab.textContent = toDMY(ymdStr);
 }
 
-/* ───────────────────────────────────────────────────────────
-   Firebase
-─────────────────────────────────────────────────────────── */
-const firebaseConfig = {
-    apiKey: "AIzaSyDhmZ_5e4prHLW7nQp_VY0KoTw9ObM7qVQ",
-    authDomain: "gestion-fletes-enki.firebaseapp.com",
-    projectId: "gestion-fletes-enki",
-    storageBucket: "gestion-fletes-enki.firebasestorage.app",
-    messagingSenderId: "1091950041596",
-    appId: "1:1091950041596:web:b6c0e2942f92eafad93a79"
-};
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-/* ───────────────────────────────────────────────────────────
-   Utils
-─────────────────────────────────────────────────────────── */
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 
@@ -39,46 +160,21 @@ const toNum = x => Number(String(x ?? 0).replace(/[^\d.-]/g, "")) || 0;
 const money = n => (Number(n) || 0).toLocaleString("es-AR");
 const first = (full = "") => full.trim().split(/\s+/)[0] || full;
 const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-
 const fmtDDMM = (ts) => {
     const d = new Date(ts || Date.now());
     const dd = String(d.getDate()).padStart(2, "0");
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     return `${dd}/${mm}`;
 };
-const findName = (dni) => (FLETEROS.find(x => x.dni === dni)?.name || dni);
+const findName = (dni) => (Array.isArray(FLETEROS) ? FLETEROS : []).find(x => x.dni === dni)?.name || dni;
 
-
-let CURRENT_DATE = new Date(); // << nueva línea
-
-async function setPersona(dni) {
-    CURRENT = dni;
-    setActivePill(dni);
-    setLoading(true, dni);
-
-    const d = CURRENT_DATE; // << usar la fecha elegida
-    const sums = (dni === KEY_GENERAL) ? await sumsForGeneral(d) : await sumsForOne(dni, d);
-    renderCards(dni, sums, accentFor(dni));
-
-    setLoading(false);
-}
-
-function paintAmount(el, value) {
-    if (!el) return;
-    el.classList.remove("pos", "neg", "zero");
-    if (!value) el.classList.add("zero");
-    else if (value > 0) el.classList.add("pos");
-    else el.classList.add("neg");
-    el.textContent = (value < 0 ? "-$" : "$") + money(Math.abs(value || 0));
-}
-
-/* ───────────────────────────────────────────────────────────
-   Fechas
-─────────────────────────────────────────────────────────── */
+// ───────────────────────────────────────────────────────────
+// Fechas
+// ───────────────────────────────────────────────────────────
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 function weekRange(d = new Date()) {
-    const day = d.getDay();                      // 0-dom … 6-sáb
+    const day = d.getDay();                  // 0-dom … 6-sáb
     const deltaToMon = (day === 0 ? -6 : 1 - day);
     const mon = new Date(d); mon.setDate(d.getDate() + deltaToMon);
     const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
@@ -97,12 +193,11 @@ function niceDate(ymdStr) {
     const mon = new Intl.DateTimeFormat("es-AR", { month: "short" }).format(d).replace(/\.$/, "");
     return `${cap(dow)} ${String(D).padStart(2, "0")} de ${cap(mon)}`;
 }
-const labelRange = (type, start, end) =>
-    `${type === "week" ? "Semana del" : "Mes del"} ${niceDate(start)} al ${niceDate(end)}`;
+const labelRange = (type, start, end) => `${type === "week" ? "Semana del" : "Mes del"} ${niceDate(start)} al ${niceDate(end)}`;
 
-/* ───────────────────────────────────────────────────────────
-   Firestore
-─────────────────────────────────────────────────────────── */
+// ───────────────────────────────────────────────────────────
+// Firestore (cargas)
+// ───────────────────────────────────────────────────────────
 async function loadFleteros() {
     const snap = await getDocs(collection(db, "fleteros"));
     return snap.docs.map(d => {
@@ -116,39 +211,26 @@ async function loadFleteros() {
     }).sort((a, b) => a.name.localeCompare(b.name, "es"));
 }
 
+// Caché por rango: clave `${dni}|${start}|${end}`
+const RANGE_CACHE = new Map();
+
 async function viajesEnRango(dni, start, end) {
+    const key = `${dni}|${start}|${end}`;
+    if (RANGE_CACHE.has(key)) return RANGE_CACHE.get(key);
+
     const ref = collection(db, "viajes", dni, "items");
+    const qy = query(
+        ref,
+        where("fecha", ">=", start),
+        where("fecha", "<=", end),
+        orderBy("fecha")
+    );
 
-    try {
-        // si existe el campo denormalizado 'fecha' funciona directo
-        const qy = query(ref, where("fecha", ">=", start), where("fecha", "<=", end));
-        const qs = await getDocs(qy);
-        if (!qs.empty) return qs.docs.map(d => ({ id: d.id, ...d.data() }));
-    } catch { /* índice no necesario en single-field; si lo pide, la consola da el link */ }
-
-    // Fallback: filtrar por cliente.fecha si el viaje es viejo
-    const snap = await getDocs(ref);
-    const out = [];
-    for (const d of snap.docs) {
-        const v = d.data() || {};
-        const f = v.fecha || v?.cliente?.fecha;
-        if (f && f >= start && f <= end) out.push({ id: d.id, ...v });
-    }
-    return out;
+    const snap = await getDocs(qy);
+    const arr = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    RANGE_CACHE.set(key, arr);
+    return arr;
 }
-
-/* function totalNeto(viajes = [], feePct = 0) {
-    const fee = Number(feePct) || 0;
-    let t = 0;
-    for (const v of viajes) {
-        // usar 'importe' si existe, si no el viejo cliente.precioServicio
-        const bruto = Number(v.importe ?? v?.cliente?.precioServicio ?? 0) || 0;
-        const neto = fee ? Math.round(bruto * (1 - fee / 100)) : bruto;
-        t += neto;
-    }
-    return t;
-}
- */
 
 function totalBruto(viajes = []) {
     let t = 0;
@@ -166,22 +248,9 @@ function computeWithFee(gross, feePct) {
     return { gross: g, feePct: f, feeAmount, net };
 }
 
-
-/* ───────────────────────────────────────────────────────────
-   Estado
-─────────────────────────────────────────────────────────── */
-const KEY_GENERAL = "__general";
-let FLETEROS = [];      // [{dni,name,fee,colorHex}]
-let CURRENT = null;    // dni o "__general"
-
-// Ajustes (en memoria por ahora): { [dni]: { week:[{monto,motivo,ts}], month:[...] } }
-const AJ = Object.create(null);
-const getAjustes = dni => AJ[dni] ?? (AJ[dni] = { week: [], month: [] });
-const sumAjustes = arr => arr.reduce((a, x) => a + (Number(x.monto) || 0), 0);
-
-/* ───────────────────────────────────────────────────────────
-   UI: pills + tarjetas
-─────────────────────────────────────────────────────────── */
+// ───────────────────────────────────────────────────────────
+// UI: tabs + tarjetas
+// ───────────────────────────────────────────────────────────
 function renderPersonTabs(personas) {
     const wrap = $("#personasTabs");
     if (!wrap) return;
@@ -239,6 +308,14 @@ const conceptsList = (items) => {
   </div>`;
 };
 
+function paintAmount(el, value) {
+    if (!el) return;
+    el.classList.remove("pos", "neg", "zero");
+    if (!value) el.classList.add("zero");
+    else if (value > 0) el.classList.add("pos");
+    else el.classList.add("neg");
+    el.textContent = (value < 0 ? "-$" : "$") + money(Math.abs(value || 0));
+}
 
 function renderCards(dni, sums, accentColor = "#0d6efd") {
     const box = $("#cardsContainer");
@@ -310,10 +387,6 @@ function renderCards(dni, sums, accentColor = "#0d6efd") {
     wireCardActions(dni);
 }
 
-
-/* ───────────────────────────────────────────────────────────
-   Interacciones tarjetas (sumar/descontar)
-─────────────────────────────────────────────────────────── */
 function wireCardActions(dni) {
     const box = $("#cardsContainer");
     if (!box) return;
@@ -376,10 +449,9 @@ function wireCardActions(dni) {
     };
 }
 
-
-/* ───────────────────────────────────────────────────────────
-   Cálculos
-─────────────────────────────────────────────────────────── */
+// ───────────────────────────────────────────────────────────
+// Cálculos
+// ───────────────────────────────────────────────────────────
 async function sumsForOne(dni, d = new Date()) {
     const f = FLETEROS.find(x => x.dni === dni);
     const fee = f ? Number(f.fee) || 0 : 0;
@@ -417,130 +489,20 @@ async function sumsForGeneral(d = new Date()) {
         mGross += cM.gross; mNet += cM.net; mCount += vm.length;
     }
 
-    // En general no hay un % único de comisión (varía por fletero)
+    // En “General” no hay un % único de comisión (varía por fletero)
     return {
         week: { label: labelRange("week", w.start, w.end), gross: wGross, feePct: null, feeAmount: null, net: wNet, count: wCount },
         month: { label: labelRange("month", m.start, m.end), gross: mGross, feePct: null, feeAmount: null, net: mNet, count: mCount }
     };
 }
 
-/* ───────────────────────────────────────────────────────────
-   Loading
-─────────────────────────────────────────────────────────── */
+// ───────────────────────────────────────────────────────────
+// Loading/estilos
+// ───────────────────────────────────────────────────────────
 const accentFor = dni => dni === KEY_GENERAL
     ? "#198754"
     : (FLETEROS.find(x => x.dni === dni)?.colorHex || "#0d6efd");
 
-function setLoading(on, dniColor = KEY_GENERAL) {
-    const overlay = $("#sd-loading");
-    const box = $("#cardsContainer");
-    if (overlay) {
-        overlay.classList.toggle("d-none", !on);
-        return;
-    }
-    if (!box || !on) return;
-    const col = accentFor(dniColor);
-    box.innerHTML = `
-    <div class="loading-wrap d-flex flex-column align-items-center justify-content-center py-5">
-      <div class="spinner-border" role="status" style="color:${col}"></div>
-      <div class="small text-muted mt-2">Cargando…</div>
-    </div>`;
-}
-
-/* ───────────────────────────────────────────────────────────
-   Boot
-─────────────────────────────────────────────────────────── */
-async function boot() {
-    applyFeatureGates();
-    installActionGuards();
-
-    // Modal (si existe en el DOM)
-    const modal = $("#ajusteModal");
-    if (modal && window.bootstrap) bootstrap.Modal.getOrCreateInstance(modal);
-
-    // Fleteros y pills
-    FLETEROS = await loadFleteros();
-    renderPersonTabs(FLETEROS);
-
-    // Tab inicial
-    const qs = new URLSearchParams(location.search);
-    const dniQ = qs.get("dni");
-    let initial = KEY_GENERAL;
-
-    if (dniQ && !isAdmin()) {
-        const mine = FLETEROS.find(x => x.dni === dniQ);
-        if (mine) {
-            // Mostrar SOLO su pill
-            const wrap = $("#personasTabs");
-            wrap.innerHTML = "";
-            const btn = document.createElement("button");
-            btn.className = "pill active";
-            btn.type = "button";
-            btn.dataset.id = mine.dni;
-            btn.innerHTML = `<span class="dot" style="background:${mine.colorHex}"></span> ${first(mine.name)}`;
-            wrap.appendChild(btn);
-            initial = mine.dni;
-        }
-    } else if (dniQ && (isAdmin() || FLETEROS.some(x => x.dni === dniQ))) {
-        initial = dniQ;
-    }
-
-    // Si por alguna razón nada quedó activo, activa el primero visible
-    if (!$("#personasTabs .pill.active")) {
-        $("#personasTabs .pill")?.classList.add("active");
-    }
-
-    await setPersona(initial);
-
-    // ----- barra de periodo -----
-    const inp = document.getElementById("rangeDate");
-    const btnPrev = document.getElementById("btnPrev");
-    const btnNext = document.getElementById("btnNext");
-    const btnToday = document.getElementById("btnToday");
-
-    /* NUEVO */ const rangeChip = document.getElementById("rangeChip");
-
-    // set inicial: hoy
-    const y = CURRENT_DATE.getFullYear();
-    const m = String(CURRENT_DATE.getMonth() + 1).padStart(2, "0");
-    const d = String(CURRENT_DATE.getDate()).padStart(2, "0");
-    if (inp) inp.value = `${y}-${m}-${d}`;
-
-    /* NUEVO: mostrar fecha en el chip */
-    updateRangeChipLabel(inp?.value || "");
-
-    /* NUEVO: abrir el picker al clickear el chip */
-    rangeChip?.addEventListener("click", () => {
-        if (typeof inp?.showPicker === "function") inp.showPicker();
-        else inp?.click();
-    });
-
-    const setAndRefresh = (dateObj) => {
-        CURRENT_DATE = dateObj;
-        if (inp) {
-            const yy = dateObj.getFullYear();
-            const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
-            const dd = String(dateObj.getDate()).padStart(2, "0");
-            inp.value = `${yy}-${mm}-${dd}`;
-        }
-        /* NUEVO: actualizar chip */
-        updateRangeChipLabel(inp?.value || "");
-        setPersona(CURRENT);
-    };
-
-    inp?.addEventListener("change", () => {
-        const [Y, M, D] = (inp.value || "").split("-").map(Number);
-        if (Y && M && D) setAndRefresh(new Date(Y, M - 1, D));
-    });
-
-    btnToday?.addEventListener("click", () => setAndRefresh(new Date()));
-
-    // mover una semana completa
-    function addDays(base, n) { const x = new Date(base); x.setDate(x.getDate() + n); return x; }
-    btnPrev?.addEventListener("click", () => setAndRefresh(addDays(CURRENT_DATE, -7)));
-    btnNext?.addEventListener("click", () => setAndRefresh(addDays(CURRENT_DATE, 7)));
-    0
-}
-
+// boot on auth
 document.addEventListener("auth:ready", boot, { once: true });
 if (window.currentUser) boot();
