@@ -1,12 +1,58 @@
 // js/new-trip.js
 // - Usa db centralizado (utils.js)
-// - Guarda campos denormalizados: fecha (YYYY-MM-DD), y, m, ym, weekStart, importe (Number)
+// - Hidrata el <select id="fletero"> en esta página (sin redirigir)
+// - Guarda campos denormalizados: fecha, y, m, ym, weekStart, importe
 // - Muestra modal de éxito con link a la agenda del fletero
 
-import { db, collection, addDoc, showLoading } from "./utils.js";
+import { db, collection, getDocs, addDoc, showLoading } from "./utils.js";
 
 let modalExito, modalError;
 
+/* ----------------------- helpers de fecha ----------------------- */
+function ymdOf(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function mondayOf(ymdStr) {
+    const [Y, M, D] = (ymdStr || "").split("-").map(Number);
+    const d = new Date(Y, (M || 1) - 1, D || 1);
+    const dow = d.getDay(); // 0=dom..6=sáb
+    const delta = (dow === 0 ? -6 : 1 - dow);
+    d.setDate(d.getDate() + delta);
+    return ymdOf(d);
+}
+
+/* -------------------- hidratar select fletero ------------------- */
+async function hydrateSelectFleteroForForm() {
+    const select = document.getElementById("fletero");
+    if (!select) return;
+
+    // placeholder inicial
+    select.innerHTML = `<option value="" selected>Elegir persona</option>`;
+
+    try {
+        const snap = await getDocs(collection(db, "fleteros"));
+        const data = snap.docs
+            .map(d => ({ dni: d.id, ...(d.data() || {}) }))
+            .sort((a, b) => (a.name || a.dni).localeCompare(b.name || b.dni, "es"));
+
+        const frag = document.createDocumentFragment();
+        for (const x of data) {
+            const op = document.createElement("option");
+            op.value = x.dni;
+            op.textContent = x.car ? `${x.name} (${x.car})` : (x.name || x.dni);
+            frag.appendChild(op);
+        }
+        select.appendChild(frag);
+
+        // si vino ?dni=... en la URL, preseleccionarlo
+        const dniQ = new URLSearchParams(location.search).get("dni");
+        if (dniQ) select.value = dniQ;
+    } catch (e) {
+        console.error("No se pudo cargar el listado de fleteros:", e);
+    }
+}
+
+/* ------------------------- modales ------------------------------ */
 function bootModals() {
     const exEl = document.getElementById("modalSaveSuccess");
     const erEl = document.getElementById("modalSaveError");
@@ -29,33 +75,23 @@ function bootModals() {
     }
 }
 
-function readyThenBoot() {
+/* -------------------- boot cuando el DOM esté ------------------- */
+(function readyThenBoot() {
+    const run = () => { bootModals(); hydrateSelectFleteroForForm(); };
     if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", bootModals, { once: true });
+        document.addEventListener("DOMContentLoaded", run, { once: true });
     } else {
-        bootModals();
+        run();
     }
-}
-readyThenBoot();
+})();
 
-// Helpers fecha
-function ymdOf(d) {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-function mondayOf(ymdStr) {
-    const [Y, M, D] = (ymdStr || "").split("-").map(Number);
-    const d = new Date(Y, (M || 1) - 1, D || 1);
-    const dow = d.getDay(); // 0=dom..6=sáb
-    const delta = (dow === 0 ? -6 : 1 - dow);
-    d.setDate(d.getDate() + delta);
-    return ymdOf(d);
-}
-
-// ------- Submit -------
+/* --------------------------- submit ----------------------------- */
 const form = document.getElementById("new-trip-form");
 form.addEventListener("submit", async (e) => {
     e.preventDefault();
     e.stopPropagation();
+
+    showLoading(true);
 
     const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
@@ -72,6 +108,7 @@ form.addEventListener("submit", async (e) => {
         modalError?.show();
         submitBtn.disabled = false;
         submitBtn.innerHTML = prevHtml;
+        showLoading(false);
         return;
     }
 
@@ -100,17 +137,17 @@ form.addEventListener("submit", async (e) => {
     try {
         const ref = collection(db, "viajes", fletero, "items");
 
-        // ====== Denormalizaciones para reportes/queries rápidas ======
+        // ---- Denormalizaciones para reportes/queries rápidas ----
         const fechaYMD = document.getElementById("fecha").value; // "YYYY-MM-DD"
         const [Y, M] = fechaYMD.split("-").map(Number);
 
-        viaje.fecha = fechaYMD;                     // clave para consultas por rango
+        viaje.fecha = fechaYMD;                         // clave para consultas por rango
         viaje.y = Y;
         viaje.m = M;
         viaje.ym = `${Y}-${String(M).padStart(2, "0")}`; // p.ej. 2025-08
-        viaje.weekStart = mondayOf(fechaYMD);                 // lunes de esa semana
+        viaje.weekStart = mondayOf(fechaYMD);            // lunes de esa semana
         viaje.importe = Number(document.getElementById("precioServicio").value) || 0; // numérico
-        // =============================================================
+        // ---------------------------------------------------------
 
         await addDoc(ref, viaje);
 

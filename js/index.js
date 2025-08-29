@@ -5,6 +5,12 @@ import { db, collection, getDocs } from "./utils.js";
 const initials = (name = "") =>
     name.trim().split(/\s+/).slice(0, 2).map(s => s[0]?.toUpperCase() || "").join("");
 
+const IS_INDEX = (() => {
+    const file = location.pathname.split('/').pop().toLowerCase() || 'index.html';
+    return file === 'index.html';
+})();
+
+
 const normalize = (s = "") =>
     s.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
 
@@ -108,40 +114,42 @@ async function hydrateSelectFletero() {
     const select = document.getElementById("fletero");
     if (!select) return;
 
-    // placeholder
-    select.innerHTML = `<option value="" selected>Elegir persona</option>`;
+    // Si no estamos en index, NO tocamos este select para evitar conflictos en new-trip
+    if (!IS_INDEX) return;
 
+    select.innerHTML = `<option value="">Elegir persona</option>`;
     try {
         const data = await fetchFleteros();
-        const frag = document.createDocumentFragment();
         data.forEach(x => {
             const op = document.createElement("option");
             op.value = x.dni;
             op.textContent = x.car ? `${x.name} (${x.car})` : x.name;
-            frag.appendChild(op);
+            select.appendChild(op);
         });
-        select.appendChild(frag);
+
+        // ⬇️ Redirección SOLO en index
+        select.addEventListener("change", (e) => {
+            const dni = e.target.value;
+            if (dni) location.href = `schedule.html?dni=${encodeURIComponent(dni)}`;
+        });
+
     } catch (e) {
         console.error("No se pudo cargar #fletero:", e);
     }
-
-    // redirección (registrar una sola vez)
-    if (!select.dataset.wired) {
-        select.addEventListener("change", () => {
-            const dni = select.value;
-            if (dni) location.href = `schedule.html?dni=${encodeURIComponent(dni)}`;
-        });
-        select.dataset.wired = "1";
-    }
 }
+
 
 // ---------------- Boot ----------------
 function boot() {
     applyFeatureGates();
     installActionGuards();
-    initMenuAgendas();
-    hydrateSelectFletero();
+
+    if (IS_INDEX) {
+        initMenuAgendas();
+        hydrateSelectFletero();
+    }
 }
+
 
 function runWhenDomReady() {
     if (document.readyState === "loading") {
