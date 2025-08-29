@@ -1,26 +1,24 @@
 // js/schedule.js
 // ----------------------------------------------------
-// Imports (Firestore centralizado + utilidades UI)
+// Firestore (SIEMPRE desde utils.js)
 // ----------------------------------------------------
 import {
-  db,                          // Firestore inicializado con cache persistente
-  doc, getDoc,
-  collection, getDocs, deleteDoc,
+  db, doc, getDoc, collection, getDocs, deleteDoc,
   query, where, showLoading
-} from "./utils.js";            // ⬅️ usa tu utils.js
+} from "./utils.js";
 
 // ----------------------------------------------------
 // Estado y helpers
 // ----------------------------------------------------
 let CURRENT_DATE = "";                 // YYYY-MM-DD de la agenda visible
-let CURRENT_DNI = "";                  // DNI actual
+let CURRENT_DNI = "";                 // DNI actual
 let deleteTarget = { dni: null, docId: null };
 let modalEliminar = null;
 
+// prefijos de país para WhatsApp
 const DIAL_BY_ISO = { AR: "54", UY: "598", CL: "56", PY: "595" };
 
 const esc = (s = "") => String(s).replace(/"/g, "&quot;");
-const formatMoney = n => (Number(n) || 0).toLocaleString("es-AR");
 
 function formatDateToYYYYMMDD(date) {
   const y = date.getFullYear();
@@ -36,11 +34,13 @@ function getDniFromUrl() {
   const qs = new URLSearchParams(location.search);
   return qs.get("dni");
 }
-function getDateFromUrl() {
-  const qs = new URLSearchParams(location.search);
-  const d = qs.get("date");
-  return /^\d{4}-\d{2}-\d{2}$/.test(d || "") ? d : null;
+
+function hexToRGB(hex = "") {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : { r: 0, g: 0, b: 0 };
 }
+
+const formatMoney = n => (Number(n) || 0).toLocaleString("es-AR");
 
 const normalizePhone = s => (s || "").replace(/\D/g, "");
 function toWhats(number = "", iso = "AR") {
@@ -85,11 +85,11 @@ function renderDayNavigator(fecha, onChange) {
   const nav = document.getElementById("dia-navigator");
   nav.classList.add("day-nav");
   nav.innerHTML = `
-    <button type="button" class="btn btn-outline-secondary day-chip" data-date="${prev.value}">
+    <button type="button" class="btn btn-outline-secondary day-chip no-selected" data-date="${prev.value}">
       <span class="dow">${prev.prevDow}</span><small class="dom">${prev.prevDom}</small>
     </button>
     <div class="day-current" data-date="${cur.value}">${cur.center}</div>
-    <button type="button" class="btn btn-outline-secondary day-chip" data-date="${next.value}">
+    <button type="button" class="btn btn-outline-secondary day-chip no-selected" data-date="${next.value}">
       <span class="dow">${next.prevDow}</span><small class="dom">${next.prevDom}</small>
     </button>
   `;
@@ -101,10 +101,9 @@ function renderDayNavigator(fecha, onChange) {
 }
 
 // ----------------------------------------------------
-// Fetch de datos (con caché en memoria y fallback)
+// Fetch de datos (con caché y fallback)
 // ----------------------------------------------------
 const fleteroCache = new Map();
-
 async function getFletero(dni) {
   if (fleteroCache.has(dni)) return fleteroCache.get(dni);
   const snap = await getDoc(doc(db, "fleteros", dni));
@@ -117,12 +116,12 @@ async function getFletero(dni) {
 async function getViajesPorDia(dni, fechastr) {
   const itemsRef = collection(db, "viajes", dni, "items");
   try {
-    const qy = query(itemsRef, where("fecha", "==", fechastr));  // requiere campo denormalizado "fecha"
+    const qy = query(itemsRef, where("fecha", "==", fechastr));           // requiere campo denormalizado "fecha"
     const qs = await getDocs(qy);
     if (!qs.empty) return qs.docs.map(d => ({ __id: d.id, ...d.data() }));
   } catch { /* si no existe índice/campo, fallback */ }
 
-  const snap = await getDocs(itemsRef);                          // fallback
+  const snap = await getDocs(itemsRef);                                   // fallback
   const out = [];
   snap.forEach(d => {
     const v = d.data();
@@ -157,7 +156,7 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
     const ayudantesText = ayud.cantidad > 0 ? `${ayud.cantidad} | $${ayud.precio || 0}` : "No";
 
     const color = colorHex || "#ffc107";
-    const bruto = Number(c.precioServicio) || 0;  // total sin comisión
+    const bruto = Number(c.precioServicio) || 0;                         // total sin comisión
     const neto = feePct ? Math.round(bruto * (1 - (Number(feePct) || 0) / 100)) : bruto;
 
     const cargaTxt = `${c.direccionCarga || ""} (${c.localidadCarga || ""})`;
@@ -227,9 +226,6 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
           <div class="precio-badge">
             <small class="mb-0">Precio servicio (total):</small>
             <h3 class="mb-0">$${formatMoney(bruto)}</h3>
-            <!-- Si querés mostrar el neto solo para admin, descomentá:
-            ${isAdmin && feePct ? `<small class="mb-0">Neto (–${feePct}%): $${formatMoney(neto)}</small>` : ``}
-            -->
           </div>
         </div>
       </div>
@@ -245,40 +241,40 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
 // ----------------------------------------------------
 async function cargarAgenda(fechastr) {
   showLoading(true);
-  try {
-    CURRENT_DATE = fechastr;
-    const dni = getDniFromUrl();
-    if (!dni) return;                        // sin DNI no hay agenda
-    CURRENT_DNI = dni;
+  CURRENT_DATE = fechastr;
+  const dni = getDniFromUrl();
+  if (!dni) return;
+  CURRENT_DNI = dni;
 
-    const [fletero, viajesRaw] = await Promise.all([
-      getFletero(dni),
-      getViajesPorDia(dni, fechastr)
-    ]);
-    if (!fletero) return;
+  const [fletero, viajesRaw] = await Promise.all([
+    getFletero(dni),
+    getViajesPorDia(dni, fechastr)
+  ]);
+  if (!fletero) return;
 
-    document.getElementById("titulo-agenda").innerText = `Agenda de ${fletero.name}`;
-    document.documentElement.style.setProperty("--color-primario", fletero.colorHex || "#135322");
+  document.getElementById("titulo-agenda").innerText = `Agenda de ${fletero.name}`;
+  document.documentElement.style.setProperty("--color-primario", fletero.colorHex || "#135322");
 
-    const feePct = Number(fletero.fee ?? fletero.comision ?? 0);
-    const country = (fletero.country || fletero.countryIso || "AR").toUpperCase();
-    const viajes = sortPorHorario(viajesRaw);
+  const feePct = Number(fletero.fee ?? fletero.comision ?? 0);
+  const country = (fletero.country || fletero.countryIso || "AR").toUpperCase();
+  const viajes = sortPorHorario(viajesRaw);
 
-    const isAdmin = (window?.currentUser?.permission || "").toLowerCase() === "admin";
+  const isAdmin = (window?.currentUser?.permission || "").toLowerCase() === "admin";
 
-    renderViajes(viajes, fletero.colorHex, feePct, country, isAdmin);
-    renderDayNavigator(fechastr, (newDate) => cargarAgenda(newDate));
+  renderViajes(viajes, fletero.colorHex, feePct, country, isAdmin);
+  renderDayNavigator(fechastr, (newDate) => cargarAgenda(newDate));
 
-    // sincronizar date-picker y label
-    const dp = document.getElementById("datePicker");
-    if (dp) dp.value = fechastr;
-    updateDateChipLabel(fechastr);
-  } catch (err) {
-    console.error("Error al cargar agenda:", err);
-    alert("No se pudo cargar la agenda. Reintentá en unos segundos.");
-  } finally {
-    showLoading(false);
-  }
+  const dp = document.getElementById("datePicker");
+  if (dp) dp.value = fechastr;
+  updateDateChipLabel(fechastr);
+
+  showLoading(false);
+}
+
+function getDateFromUrlParam() {
+  const qs = new URLSearchParams(location.search);
+  const d = qs.get("date");
+  return /^\d{4}-\d{2}-\d{2}$/.test(d || "") ? d : null;
 }
 
 // ----------------------------------------------------
@@ -290,23 +286,19 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnHoy = document.getElementById("btnHoy");
   const modalEl = document.getElementById("modalEliminarViaje");
 
-  // Modal eliminar (una sola vez)
   if (modalEl && window.bootstrap) modalEliminar = new bootstrap.Modal(modalEl);
 
-  // Fecha inicial (?date=YYYY-MM-DD o hoy)
-  const initial = getDateFromUrl() || formatDateToYYYYMMDD(new Date());
+  const initial = getDateFromUrlParam() || formatDateToYYYYMMDD(new Date());
 
   if (datePicker) {
     datePicker.value = initial;
     updateDateChipLabel(initial);
   }
-  cargarAgenda(initial); // inicial
+  cargarAgenda(initial);
 
-  // iOS detection
   const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent)
     || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-  // Input -> cuando cambia, refresca agenda
   datePicker?.addEventListener("change", (e) => {
     const v = e.target.value;
     if (v) {
@@ -316,27 +308,23 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   if (isIOS) {
-    // iOS: usar el selector nativo con overlay encima del chip
     try { datePicker.type = "date"; } catch (e) { }
     datePicker.classList.remove("visually-hidden");
     datePicker.classList.add("ios-date-overlay");
-    // El chip queda solo como UI (sin handler)
     dateChip?.setAttribute("aria-hidden", "true");
     dateChip?.setAttribute("tabindex", "-1");
   } else {
-    // Desktop/Android: abrir nativo desde el chip
     dateChip?.addEventListener("click", (e) => {
       e.preventDefault();
       if (typeof datePicker.showPicker === "function") {
         datePicker.showPicker();
       } else {
         datePicker.focus();
-        datePicker.click(); // fallback Firefox
+        datePicker.click();
       }
     });
   }
 
-  // Botón Hoy
   btnHoy?.addEventListener("click", () => {
     const todayStr = formatDateToYYYYMMDD(new Date());
     if (datePicker) datePicker.value = todayStr;
@@ -350,7 +338,6 @@ document.addEventListener("DOMContentLoaded", () => {
 // ----------------------------------------------------
 const contViajes = document.getElementById("viajes-dia");
 if (contViajes) {
-  // abrir modal eliminar
   contViajes.addEventListener("click", (e) => {
     const btn = e.target.closest(".btn-delete-trip");
     if (!btn) return;
@@ -366,7 +353,6 @@ if (contViajes) {
     modalEliminar?.show();
   });
 
-  // copiar carga/descarga
   contViajes.addEventListener("click", async (e) => {
     const btn = e.target.closest(".copy-btn");
     if (!btn) return;
@@ -414,9 +400,6 @@ if (formEliminar) {
   });
 }
 
-// ----------------------------------------------------
-// Label del chip
-// ----------------------------------------------------
 function formatYYYYMMDDtoDDMMYYYY(str = "") {
   const [y, m, d] = (str || "").split("-");
   if (!y || !m || !d) return str || "";

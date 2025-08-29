@@ -188,6 +188,33 @@
         </div>
     </div>
 
+    <!-- Modal: Eliminar ajuste -->
+    <div class="modal fade" id="modalEliminarAjuste" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" id="formEliminarAjuste">
+                <div class="modal-header">
+                    <h5 class="modal-title">Eliminar ajuste</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">Vas a eliminar este ajuste. Esta acción no se puede deshacer.</p>
+                    <ul class="small list-unstyled mb-0">
+                        <li><b>Persona:</b> <span id="delAjPersona">-</span></li>
+                        <li><b>Ámbito:</b> <span id="delAjScope">-</span></li>
+                        <li><b>Período:</b> <span id="delAjPeriodo">-</span></li>
+                        <li><b>Monto:</b> <span id="delAjMonto">-</span></li>
+                        <li><b>Motivo:</b> <span id="delAjMotivo">-</span></li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button id="btnConfirmarEliminarAj" type="submit" class="btn btn-danger">Eliminar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
     <div id="appLoading" class="app-loading">
         <div class="spinner"></div>
     </div>

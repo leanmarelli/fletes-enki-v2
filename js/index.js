@@ -8,7 +8,7 @@ const initials = (name = "") =>
 const normalize = (s = "") =>
     s.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
 
-// Tarjeta de fletero (en lista del offcanvas)
+// ---------------- Tarjeta en el offcanvas ----------------
 function renderFleteroItem({ dni, name, car, colorHex }) {
     const el = document.createElement("a");
     el.className = "list-group-item list-group-item-action";
@@ -43,18 +43,17 @@ function renderFleteroItem({ dni, name, car, colorHex }) {
     el.appendChild(avatar);
     el.appendChild(main);
 
+    // cerrar offcanvas si está abierto
     el.addEventListener("click", () => {
         const oc = document.getElementById("offcanvasMenu");
-        if (oc && window.bootstrap) {
-            const inst = bootstrap.Offcanvas.getOrCreateInstance(oc);
-            inst.hide();
-        }
+        if (oc && window.bootstrap) bootstrap.Offcanvas.getOrCreateInstance(oc).hide();
     });
 
     el.setAttribute("tabindex", "0");
     return el;
 }
 
+// ---------------- Datos ----------------
 async function fetchFleteros() {
     const snap = await getDocs(collection(db, "fleteros"));
     return snap.docs.map(d => {
@@ -68,6 +67,7 @@ async function fetchFleteros() {
     }).sort((a, b) => a.name.localeCompare(b.name, "es"));
 }
 
+// ---------------- Menú lateral (admin) ----------------
 function initMenuAgendas() {
     const collapseEl = document.getElementById("collapseAgendasMenu");
     const listEl = document.getElementById("listaFleterosMenu");
@@ -103,24 +103,39 @@ function initMenuAgendas() {
     });
 }
 
+// ---------------- Select de la tarjeta “Agendas” ----------------
 async function hydrateSelectFletero() {
     const select = document.getElementById("fletero");
     if (!select) return;
 
-    select.innerHTML = `<option value="">Elegir persona</option>`;
+    // placeholder
+    select.innerHTML = `<option value="" selected>Elegir persona</option>`;
+
     try {
         const data = await fetchFleteros();
+        const frag = document.createDocumentFragment();
         data.forEach(x => {
             const op = document.createElement("option");
             op.value = x.dni;
             op.textContent = x.car ? `${x.name} (${x.car})` : x.name;
-            select.appendChild(op);
+            frag.appendChild(op);
         });
+        select.appendChild(frag);
     } catch (e) {
         console.error("No se pudo cargar #fletero:", e);
     }
+
+    // redirección (registrar una sola vez)
+    if (!select.dataset.wired) {
+        select.addEventListener("change", () => {
+            const dni = select.value;
+            if (dni) location.href = `schedule.html?dni=${encodeURIComponent(dni)}`;
+        });
+        select.dataset.wired = "1";
+    }
 }
 
+// ---------------- Boot ----------------
 function boot() {
     applyFeatureGates();
     installActionGuards();
@@ -135,11 +150,10 @@ function runWhenDomReady() {
         boot();
     }
 }
-
 document.addEventListener("auth:ready", runWhenDomReady, { once: true });
 if (window.currentUser) runWhenDomReady();
 
-// Marcar item activo en el menú (opcional)
+// ---------------- Marcar item activo en el menú ----------------
 const back = document.getElementById("btnBack");
 if (back) {
     back.addEventListener("click", () => {
@@ -193,5 +207,6 @@ function highlightMenu() {
         }
     }
 }
+
 document.addEventListener("auth:ready", highlightMenu, { once: true });
 if (window.currentUser) highlightMenu();

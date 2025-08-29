@@ -213,8 +213,8 @@ body {
 }
 
 #offcanvasMenu .btn.active {
-    background: var(--bs-primary);
-    border-color: var(--bs-primary);
+    background: #198754;
+    border-color: #198754;
     color: #fff;
 }
 

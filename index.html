@@ -157,18 +157,6 @@
     <!-- Firebase -->
     <script type="module" src="js/index.js"></script>
 
-    <!-- Select -->
-    <script type="module">
-        const fleteroSelect = document.getElementById("fletero");
-
-        fleteroSelect.addEventListener("change", () => {
-            const dni = fleteroSelect.value;
-            if (dni) {
-                const baseUrl = window.location.origin;
-                window.location.href = `${baseUrl}/schedule.html?dni=${dni}`;
-            }
-        });
-    </script>
 </body>
 
 
