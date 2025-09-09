@@ -6,17 +6,27 @@ export function enhanceColorSelect(select, items, {
 } = {}) {
     if (!select) return;
 
-    // Fallback: si no hay Bootstrap JS, dejamos el select nativo
+    // 1) Cargar SIEMPRE las <option> del <select> nativo (para required + submit)
+    function buildNativeOptions() {
+        select.innerHTML = "";
+        select.appendChild(new Option(placeholder, "")); // opción vacía
+        for (const x of items) {
+            const label = x.car ? `${x.name} (${x.car})` : (x.name || x.dni);
+            const opt = new Option(label, x.dni);
+            opt.dataset.colorHex = x.colorHex || "";
+            select.appendChild(opt);
+        }
+    }
+    buildNativeOptions();
+
+    // 2) Si no hay Bootstrap JS, usar el <select> nativo y listo
     if (!window.bootstrap) {
-        // al menos pinto texto “● ” delante (sin color real)
-        select.innerHTML = `<option value="">${placeholder}</option>` +
-            items.map(x => `<option value="${x.dni}">● ${x.car ? `${x.name} (${x.car})` : x.name}</option>`).join("");
         if (preselect) select.value = preselect;
         if (onChange) select.addEventListener("change", e => onChange(e.target.value, items.find(i => i.dni === e.target.value)));
         return;
     }
 
-    // Ocultar nativo pero conservarlo para el form
+    // 3) Construir el dropdown “lindo”
     select.classList.add("visually-hidden");
     select.setAttribute("data-enhanced", "1");
 
@@ -43,14 +53,25 @@ export function enhanceColorSelect(select, items, {
         li.innerHTML = `
       <a href="#" class="dropdown-item d-flex align-items-center gap-2" data-value="${x.dni}">
         <span class="cs-dot" style="background:${x.colorHex || "#ccc"}"></span>
-        <span class="flex-grow-1 text-truncate">${x.car ? `${x.name} (${x.car})` : x.name}</span>
+        <span class="flex-grow-1 text-truncate">${x.car ? `${x.name} (${x.car})` : (x.name || x.dni)}</span>
       </a>`;
         ul.appendChild(li);
     });
     wrap.appendChild(ul);
 
+    // 4) Selección: actualizar <select> real + disparar change
     const setValue = (value) => {
         select.value = value || "";
+        // si por algún motivo no existiera la opción, la creamos (defensa)
+        if (value && ![...select.options].some(o => o.value === value)) {
+            const f = items.find(i => i.dni === value);
+            if (f) {
+                const opt = new Option(f.car ? `${f.name} (${f.car})` : f.name, f.dni);
+                select.appendChild(opt);
+                select.value = value;
+            }
+        }
+        // actualizar la etiqueta del botón
         const found = items.find(i => i.dni === value);
         const label = wrap.querySelector(".cs-label");
         if (found) {
@@ -59,7 +80,9 @@ export function enhanceColorSelect(select, items, {
         } else {
             label.textContent = placeholder;
         }
-        onChange && onChange(value, found);
+        // notificar
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        if (onChange) onChange(value, found);
     };
 
     ul.addEventListener("click", (e) => {
@@ -70,6 +93,4 @@ export function enhanceColorSelect(select, items, {
     });
 
     if (preselect) setValue(preselect);
-
-    return { setValue, wrapper: wrap };
 }
