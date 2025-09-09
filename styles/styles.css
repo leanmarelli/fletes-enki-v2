@@ -1035,3 +1035,281 @@ body {
 .no-selected{
     min-width: 100px
 }
+
+* Caja de acciones fija al fondo en mobile */ .form-actions-sticky {
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    border-top: 1px solid #e9ecef;
+    padding: .75rem;
+    z-index: 5;
+    border-bottom-left-radius: var(--card-radius);
+    border-bottom-right-radius: var(--card-radius);
+    box-shadow: 0 -6px 16px rgba(0, 0, 0, .04);
+}
+
+/* Grupos de opciones con estilo “pastilla” */
+.choice-group .btn {
+    border-radius: 999px;
+    padding: .45rem .9rem;
+    font-weight: 600;
+}
+
+.choice-group .btn i {
+    opacity: .9;
+    margin-right: .35rem;
+}
+
+/* Inputs con prefijos cortos */
+.input-group-text.min {
+    min-width: 42px;
+    justify-content: center;
+}
+
+/* Área de texto más compacta por defecto */
+textarea.form-control {
+    min-height: 80px;
+}
+
+/* Cartas de sección reutilizando el lenguaje visual del sitio */
+.section-card {
+    background: #fff;
+    border-radius: var(--card-radius);
+    border: 1px solid #eef0f2;
+    box-shadow: 0 2px 10px #0001;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Micro ayudas bajo campos */
+.hint {
+    font-size: .875rem;
+    color: #6c757d;
+}
+
+/* Fix desktop: radio-pills en una sola fila y sin cortes raros */
+.choice-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+
+.choice-group .btn {
+    white-space: nowrap;
+    padding: .35rem .75rem;
+    flex: 0 0 auto;
+}
+
+@media (min-width: 992px) {
+    .choice-group {
+        flex-wrap: nowrap !important;
+    }
+}
+
+/* Alineación vertical prolija en la fila de “Datos de servicio” */
+.row-service {
+    align-items: flex-start !important;
+}
+
+@media (max-width: 400px) {
+    .choice-group .btn {
+        padding: .3rem .55rem;
+        font-size: .9rem;
+    }
+
+    .input-group-text.min {
+        min-width: 36px;
+    }
+}
+
+/* XS safeguards (≤360px) */
+@media (max-width: 360px) {
+    .section-card {
+        padding: .75rem;
+    }
+
+    .choice-group {
+        gap: .4rem;
+    }
+
+    .choice-group .btn {
+        padding: .28rem .5rem;
+        font-size: .9rem;
+    }
+
+    .input-group-text.min {
+        min-width: 32px;
+        padding-left: .25rem;
+        padding-right: .25rem;
+    }
+
+    .navbar-title {
+        font-size: 1rem;
+    }
+}
+
+.sum-table thead th {
+    font-weight: 600;
+    color: #6c757d;
+    border-bottom: 1px solid rgba(0, 0, 0, .06);
+}
+
+.sum-table tbody tr {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.sum-table tbody tr td {
+    vertical-align: middle;
+    border-top: 6px solid #fff;
+    /* separador “air” entre filas */
+}
+
+.sum-total-row td {
+    border-top: 1px solid rgba(0, 0, 0, .1) !important;
+    background: #f8f9fa;
+}
+
+.sd-card {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 1px 8px rgba(0, 0, 0, .06);
+}
+
+.sd-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .75rem;
+}
+
+@media (min-width: 420px) {
+    .sd-actions {
+        grid-template-columns: 1fr 1fr auto;
+    }
+}
+
+.btn-outline-danger {
+    --bs-btn-color: #c0392b;
+    --bs-btn-border-color: #c0392b;
+}
+
+.btn-outline-danger:hover {
+    background: #c0392b;
+    color: #fff;
+}
+
+.sd-notes .note-item {
+    background: #f6f7f9;
+    border: 1px solid rgba(0, 0, 0, .05);
+    border-radius: 12px;
+    padding: .5rem .75rem;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .75rem;
+}
+
+.sd-notes .note-meta {
+    font-size: .8rem;
+    color: #6c757d;
+}
+
+.sd-notes .note-text {
+    white-space: pre-wrap;
+}
+
+.sd-notes .note-actions button {
+    border: none;
+    background: transparent;
+    color: #6c757d;
+    padding: .25rem .4rem;
+}
+
+.sd-notes .note-actions button:hover {
+    color: #111;
+}
+
+.sd-notes .notes-composer textarea {
+    resize: vertical;
+}
+
+/* ---- Color Select ---- */
+.color-select {
+    width: 100%;
+}
+
+.color-select .form-select {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-right: 2.25rem;
+    cursor: pointer;
+}
+
+.color-select .cs-label {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    overflow: hidden;
+}
+
+.color-select .cs-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    display: inline-block;
+}
+
+.dropdown-menu .cs-dot {
+    width: 10px;
+    height: 10px;
+}
+
+/* Offcanvas dot más visible */
+.ag-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    display: inline-block;
+    margin-left: .5rem;
+}
+
+/* Puntito grande para el offcanvas */
+.ag-lead-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .06);
+    flex: 0 0 14px;
+}
+
+.day-totals.sd-card {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 1px 8px rgba(0, 0, 0, .06);
+}
+
+.day-totals .line {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.day-totals .display-total {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--color-primario, #135322);
+}
+
+.day-totals .muted {
+    color: #6c757d;
+}
+
+/* styles.css */
+.precio-badge .ayudantes-info {
+    margin-top: .25rem;
+}
+
+.precio-badge .small {
+    line-height: 1.2;
+}

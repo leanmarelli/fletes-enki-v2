@@ -5,6 +5,7 @@
 // - Muestra modal de éxito con link a la agenda del fletero
 
 import { db, collection, getDocs, addDoc, showLoading } from "./utils.js";
+import { enhanceColorSelect } from "./color-select.js";
 
 let modalExito, modalError;
 
@@ -26,31 +27,23 @@ async function hydrateSelectFleteroForForm() {
     const select = document.getElementById("fletero");
     if (!select) return;
 
-    // placeholder inicial
-    select.innerHTML = `<option value="" selected>Elegir persona</option>`;
-
     try {
         const snap = await getDocs(collection(db, "fleteros"));
         const data = snap.docs
             .map(d => ({ dni: d.id, ...(d.data() || {}) }))
             .sort((a, b) => (a.name || a.dni).localeCompare(b.name || b.dni, "es"));
 
-        const frag = document.createDocumentFragment();
-        for (const x of data) {
-            const op = document.createElement("option");
-            op.value = x.dni;
-            op.textContent = x.car ? `${x.name} (${x.car})` : (x.name || x.dni);
-            frag.appendChild(op);
-        }
-        select.appendChild(frag);
-
-        // si vino ?dni=... en la URL, preseleccionarlo
-        const dniQ = new URLSearchParams(location.search).get("dni");
-        if (dniQ) select.value = dniQ;
+        const dniQ = new URLSearchParams(location.search).get("dni") || "";
+        enhanceColorSelect(select, data, {
+            placeholder: "Elegir persona",
+            preselect: dniQ,
+            onChange: (dni) => { /* NO redirige; solo mantiene valor para el form */ }
+        });
     } catch (e) {
         console.error("No se pudo cargar el listado de fleteros:", e);
     }
 }
+
 
 /* ------------------------- modales ------------------------------ */
 function bootModals() {
@@ -147,6 +140,15 @@ form.addEventListener("submit", async (e) => {
         viaje.ym = `${Y}-${String(M).padStart(2, "0")}`; // p.ej. 2025-08
         viaje.weekStart = mondayOf(fechaYMD);            // lunes de esa semana
         viaje.importe = Number(document.getElementById("precioServicio").value) || 0; // numérico
+        // Timestamp exacto del viaje (fecha + hora) para consultas futuras
+        {
+            const fechaYMD = document.getElementById("fecha").value;   // "YYYY-MM-DD"
+            const horaHM = document.getElementById("hora").value || "00:00"; // "HH:mm"
+            const [Y, M, D] = fechaYMD.split("-").map(Number);
+            const [h, m] = horaHM.split(":").map(Number);
+            viaje.when = new Date(Y, M - 1, D, h || 0, m || 0).toISOString(); // ISO string
+        }
+
         // ---------------------------------------------------------
 
         await addDoc(ref, viaje);
