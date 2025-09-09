@@ -15,6 +15,92 @@ let CURRENT_DNI = "";                 // DNI actual
 let deleteTarget = { dni: null, docId: null };
 let modalEliminar = null;
 
+function computeDiaTotals(viajes) {
+  let totalServicio = 0;      // suma de precioServicio
+  let totalAyudantes = 0;     // suma de cant * precio (solo si cant>0 y precio>0)
+  let cantAyudantes = 0;      // cantidad total de ayudantes (sumada)
+  const unitPrices = new Set();
+
+  for (const v of viajes) {
+    const c = v.cliente || {};
+    const a = v.ayudantes || {};
+    const precio = Number(c.precioServicio) || 0;
+    const cant = Number(a.cantidad) || 0;
+    const pa = Number(a.precio) || 0;
+
+    totalServicio += precio;
+    if (cant > 0 && pa > 0) {
+      totalAyudantes += cant * pa;
+      cantAyudantes += cant;
+      unitPrices.add(pa);
+    }
+  }
+
+  const helperUnit = unitPrices.size === 1 ? [...unitPrices][0] : null;
+
+  return {
+    totalCobrar: totalServicio + totalAyudantes,
+    totalAyudantes,
+    totalBrutoChofer: totalServicio, // = Total a cobrar - Total a ayudantes
+    cantAyudantes,
+    helperUnit
+  };
+}
+
+
+function renderTotalesDia(viajes, feePct = 0, driverName = "") {
+  const box = document.getElementById("totales-dia");
+  if (!box) return;
+
+  // ⬇️ Si no hay viajes, oculto el resumen
+  if (!viajes || viajes.length === 0) {
+    box.innerHTML = "";
+    box.classList.remove("sd-card", "p-3");
+    return;
+  }
+
+  const {
+    totalCobrar, totalAyudantes, totalBrutoChofer, cantAyudantes, helperUnit
+  } = computeDiaTotals(viajes);
+
+  const ayudantesLine = (totalAyudantes > 0)
+    ? `<div class="line mb-2 muted">
+         <span>Total ayudantes</span>
+         <span>$${formatMoney(totalAyudantes)} ${helperUnit ? `(${formatMoney(helperUnit)} c/u)` : ""}</span>
+       </div>`
+    : "";
+
+  const expr = (totalAyudantes > 0)
+    ? `$${formatMoney(totalCobrar)} - $${formatMoney(totalAyudantes)}`
+    : "";
+
+  box.classList.add("sd-card", "p-3");
+  box.innerHTML = `
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h6 class="mb-0">Viajes del día</h6>
+      <span class="badge bg-light text-dark border">${viajes.length} viajes</span>
+    </div>
+
+    <div class="line mb-2">
+      <span>Total a cobrar</span>
+      <span class="fw-semibold">$${formatMoney(totalCobrar)}</span>
+    </div>
+
+    ${ayudantesLine}
+
+    <hr class="my-2">
+    ${expr ? `<div class="text-end small muted">${expr}</div>` : ``}
+    <div class="line mb-1">
+      <span class="fw-semibold">Total a rendir</span>
+      <span class="display-total">$${formatMoney(totalBrutoChofer)}</span>
+    </div>
+    
+  `;
+}
+
+
+
+
 // prefijos de país para WhatsApp
 const DIAL_BY_ISO = { AR: "54", UY: "598", CL: "56", PY: "595" };
 
@@ -148,6 +234,7 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
     return;
   }
 
+
   const frag = document.createDocumentFragment();
 
   viajes.forEach(viaje => {
@@ -159,8 +246,8 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
     const bruto = Number(c.precioServicio) || 0;                         // total sin comisión
     const neto = feePct ? Math.round(bruto * (1 - (Number(feePct) || 0) / 100)) : bruto;
 
-    const cargaTxt = `${c.direccionCarga || ""} (${c.localidadCarga || ""})`;
-    const descargaTxt = `${c.direccionDescarga || ""} (${c.localidadDescarga || ""})`;
+    const cargaTxt = `${c.direccionCarga || ""}, ${c.localidadCarga || ""}`;
+    const descargaTxt = `${c.direccionDescarga || ""}, ${c.localidadDescarga || ""}`;
 
     const adminBtnHtml = isAdmin ? `
       <button data-visible-for="admin"
@@ -179,6 +266,26 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
 
     const card = document.createElement("div");
     card.className = "viaje mb-4 p-0 shadow-sm";
+
+    const cantAy = Number(ayud.cantidad) || 0;
+    const precioAy = Number(ayud.precio) || 0;
+    const totalAy = cantAy * precioAy;
+    const showHelpers = cantAy > 0 && precioAy > 0;
+
+    const helpersBody = showHelpers ? `
+  <small class="mb-0">Ayudantes:</small>
+  <div class="mb-1"><b>${cantAy} | $${formatMoney(precioAy)}</b></div>
+` : "";
+
+    const totalCobrarViaje = bruto + (showHelpers ? totalAy : 0);
+
+
+    const helpersFooter = showHelpers ? `
+  <div class="ayudantes-info text-end mt-1">
+    <small class="text-white-50">Total a ayudantes:</small>
+    <span class="ms-2 fw-semibold">${cantAy} × $${formatMoney(precioAy)} = $${formatMoney(totalAy)}</span>
+  </div>
+` : "";
     card.innerHTML = `
       <div class="d-flex align-items-stretch">
         <div class="barra-lateral" style="background:${color};">
@@ -205,7 +312,7 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
 
             <small class="mb-0">Carga:</small>
             <div class="mb-1 d-flex align-items-center gap-2 flex-wrap">
-              <b>${c.direccionCarga || ""} (${c.localidadCarga || ""})</b>
+              <b>${c.direccionCarga || ""}, ${c.localidadCarga || ""}</b>
             </div>
 
             <small class="mb-0">Detalle:</small>
@@ -213,20 +320,40 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
 
             <small class="mb-0">Descarga:</small>
             <div class="mb-1 d-flex align-items-center gap-2 flex-wrap">
-              <b>${c.direccionDescarga || ""} (${c.localidadDescarga || ""})</b>
+              <b>${c.direccionDescarga || ""}, ${c.localidadDescarga || ""}</b>
             </div>
 
             <small class="mb-0">Peajes:</small>
             <div class="mb-1"><b>${c.peajes || ""}</b></div>
 
-            <small class="mb-0">Ayudantes:</small>
-            <div class="mb-1"><b>${ayudantesText}</b></div>
+            ${helpersBody}
           </div>
-
           <div class="precio-badge">
-            <small class="mb-0">Precio servicio (total):</small>
-            <h3 class="mb-0">$${formatMoney(bruto)}</h3>
-          </div>
+          
+          ${showHelpers ? `
+            <div class="text-white-50 small mt-1 d-flex justify-content-between align-items-center gap-2">
+              Total a ayudantes: <b class="text-white">$${formatMoney(totalAy)}</b>
+            </div>
+            <div class="text-white-50 small mt-1 d-flex justify-content-between align-items-center gap-2">
+            Total a rendir: <b class="text-white">$${formatMoney(bruto)}</b>
+            </div>
+            <div class="d-flex justify-content-between align-items-center gap-2">
+              <small class="mb-0 text-white fw-semibold">Total a cobrar: </small>
+              <h3 class="mb-0 text-white">$${formatMoney(totalCobrarViaje)}</h3>
+            </div>
+          ` : `
+          <div class="d-flex justify-content-between align-items-center gap-2">
+              <small class="mb-0 text-white mr-5">Total a cobrar: </small>
+              <h3 class="mb-0 text-white"> $${formatMoney(totalCobrarViaje)}</h3>
+            </div>
+          `}
+
+          
+
+        </div>
+
+        </div>
+
         </div>
       </div>
     `;
@@ -262,6 +389,7 @@ async function cargarAgenda(fechastr) {
   const isAdmin = (window?.currentUser?.permission || "").toLowerCase() === "admin";
 
   renderViajes(viajes, fletero.colorHex, feePct, country, isAdmin);
+  renderTotalesDia(viajes, feePct, fletero.name);
   renderDayNavigator(fechastr, (newDate) => cargarAgenda(newDate));
 
   const dp = document.getElementById("datePicker");

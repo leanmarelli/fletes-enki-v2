@@ -14,7 +14,7 @@ import {
     // Re-export de helpers que usás en la app:
     doc, getDoc, setDoc, addDoc, deleteDoc,
     collection, getDocs, query, where, orderBy, limit,
-    serverTimestamp
+    serverTimestamp, updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
 // Config del proyecto (único lugar):
@@ -42,7 +42,7 @@ export const db = initializeFirestore(app, {
 export {
     doc, getDoc, setDoc, addDoc, deleteDoc,
     collection, getDocs, query, where, orderBy, limit,
-    serverTimestamp
+    serverTimestamp, updateDoc
 };
 
 /* Spinner de carga */
