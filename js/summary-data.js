@@ -39,7 +39,6 @@ const esc = (s = "") => String(s).replace(/"/g, "&quot;");
 const toNum = x => Number(String(x ?? 0).replace(/[^\d-]/g, "")) || 0;
 const money = n => (Number(n) || 0).toLocaleString("es-AR");
 const first = (full = "") => full.trim().split(/\s+/)[0] || full;
-const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 
 const fmtDDMM = (ts) => {
     const d = new Date(ts || Date.now());
@@ -63,6 +62,38 @@ function toDMY(ymdStr) {
 function updateRangeChipLabel(ymdStr) {
     const lab = document.getElementById("rangeChipLabel");
     if (lab) lab.textContent = toDMY(ymdStr);
+}
+// ── Etiquetas lindas ─────────────────────────────────────────
+const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+
+function niceDateShort(ymdStr) {
+    const [Y, M, D] = ymdStr.split("-").map(Number);
+    const d = new Date(Y, M - 1, D);
+    const dow = new Intl.DateTimeFormat("es-AR", { weekday: "short" }).format(d).replace(/\.$/, "");
+    const mon = new Intl.DateTimeFormat("es-AR", { month: "short" }).format(d).replace(/\.$/, "");
+    return `${cap(dow)} ${String(D).padStart(2, "0")} de ${cap(mon)}`;
+}
+
+function weekLabelDynamic(baseDate = new Date()) {
+    const { start, end } = weekRange(baseDate);
+    const todayYMD = ymd(new Date());
+    const inThisWeek = (todayYMD >= start && todayYMD <= end);
+    const endLabel = inThisWeek ? todayYMD : end;
+    return `Semana del ${niceDateShort(start)} al ${niceDateShort(endLabel)}`;
+}
+
+function monthLabelPretty(baseDate = new Date()) {
+    const m = new Intl.DateTimeFormat("es-AR", { month: "long", year: "numeric" }).format(baseDate);
+    return `Mes de ${cap(m)}`;
+}
+
+// Header visual bonito (usa Bootstrap Icons si las tenés)
+function fancyHeading(label, icon = "calendar2-week") {
+    return `
+    <div class="sd-heading">
+      <span class="sd-ico bi bi-${icon}"></span>
+      <span class="sd-heading-text">${label}</span>
+    </div>`;
 }
 
 /* ---------- helpers de color ---------- */
@@ -755,12 +786,15 @@ function renderGeneralTable(sums) {
 
     const week = sums.week;
     const month = sums.month;
+    const firstName = (s = "") => (s || "").trim().split(/\s+/)[0] || "";
 
     const tableRows = (week.rows || []).map(r => `
     <tr style="--row-color:${r.colorHex}; background:${softBg(r.colorHex, 0.16)}">
-      <td class="fw-semibold">
-        <span class="me-2 rounded-circle d-inline-block" style="width:10px;height:10px;background:${r.colorHex}"></span>
-        ${r.name}
+      <td class="fw-semibold name-cell">
+        <div class="name-content">
+          <span class="cs-dot" style="background:${r.colorHex}"></span>
+          <span class="name-label">${firstName(r.name)}</span>
+        </div>
       </td>
       <td class="text-center">${r.count}</td>
       <td class="text-end">$${money(r.gross)}</td>
@@ -768,13 +802,15 @@ function renderGeneralTable(sums) {
     </tr>
   `).join("");
 
+    // ⬇️ Etiquetas nuevas
+    const weekTitle = weekLabelDynamic(CURRENT_DATE);
+    const monthTitle = monthLabelPretty(CURRENT_DATE);
+
     box.innerHTML = `
     <div class="sd-card p-3">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6>${week.label}</h6>
-      </div>
+      ${fancyHeading(weekTitle, "calendar2-week")}
 
-      <div class="table-responsive">
+      <div class="table-responsive mt-2">
         <table class="table table-borderless align-middle sum-table">
           <thead>
             <tr>
@@ -800,8 +836,8 @@ function renderGeneralTable(sums) {
     </div>
 
     <div class="sd-card p-3 mt-3">
-      <h6 class="mb-3">${month.label}</h6>
-      <div class="row g-3">
+      ${fancyHeading(monthTitle, "calendar2-month")}
+      <div class="row g-3 mt-2">
         <div class="col-6 col-md">
           <div class="text-muted small">Viajes</div>
           <div class="h6 mb-0">${month.count}</div>
@@ -818,3 +854,4 @@ function renderGeneralTable(sums) {
     </div>
   `;
 }
+

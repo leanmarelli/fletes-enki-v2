@@ -1313,3 +1313,57 @@ textarea.form-control {
 .precio-badge .small {
     line-height: 1.2;
 }
+
+/* Dot de la tabla */
+.sum-table .cs-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    display: inline-block;
+    flex: 0 0 10px;
+}
+
+/* Celda de nombre: una sola línea, con el dot al lado */
+.sum-table .name-cell {
+    white-space: nowrap;
+}
+
+.sum-table .name-content {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    min-width: 0;
+    /* para elipsis */
+}
+
+.sum-table .name-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+/* Encabezado de tarjetas de resumen */
+.sd-heading {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .5rem .75rem;
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(0, 0, 0, .04), rgba(0, 0, 0, .02));
+    border: 1px solid rgba(0, 0, 0, .06);
+}
+
+.sd-ico {
+    padding: .5rem;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--color-primario, #198754);
+    color: #fff;
+    font-size: 16px;
+}
+
+.sd-heading-text {
+    font-weight: 600;
+}
