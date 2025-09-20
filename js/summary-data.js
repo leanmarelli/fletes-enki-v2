@@ -13,7 +13,8 @@
 
 import { applyFeatureGates, installActionGuards, isAdmin } from "./gate.js";
 import {
-    db, collection, getDocs, query, where, orderBy, addDoc, doc, deleteDoc, showLoading, updateDoc
+    db, collection, getDocs, query, where, orderBy,
+    addDoc, doc, deleteDoc, showLoading, updateDoc, setDoc // ⟵ agrega setDoc
 } from "./utils.js";
 
 /* ───────────────────────────────────────────────────────────
@@ -245,17 +246,22 @@ async function fetchAjustesFor(dni, d = new Date()) {
     return res;
 }
 
-async function addAjuste({ dni, scope, baseDate, monto, motivo, by }) {
-    const ref = collection(db, "ajustes", String(dni), "items");
+async function addAjuste({ dni, scope, baseDate, monto, motivo, by, opId }) {
+    const ref = doc(collection(db, "ajustes", String(dni), "items"),
+        opId || (crypto?.randomUUID?.() || String(Date.now())));
+
     const payload = {
-        scope,                                     // 'week'|'month'
+        scope,
         periodKey: scope === "week" ? weekKey(baseDate) : monthKey(baseDate),
         monto: Number(monto) || 0,
         motivo: (motivo || "-").trim(),
         by: by || (findName(dni) || ""),
-        ts: Date.now()
+        ts: Date.now(),
     };
-    await addDoc(ref, payload);
+
+    // Idempotente: si se vuelve a intentar con el mismo opId, se sobre-escribe
+    await setDoc(ref, payload, { merge: false });
+
     // invalidar cache de ese período
     const wk = weekKey(baseDate), mk = monthKey(baseDate);
     AJ_CACHE.delete(`${dni}|${wk}|${mk}`);
@@ -507,6 +513,9 @@ function renderCards(dni, sums, accentColor = "#0d6efd") {
    Interacciones tarjetas (sumar / descontar / eliminar)
 ─────────────────────────────────────────────────────────── */
 function wireCardActions(dni) {
+    let _saveHandlerRef = null;
+    let _currentOpId = null;
+
     const box = $("#cardsContainer");
     if (!box) return;
 
@@ -528,17 +537,19 @@ function wireCardActions(dni) {
         let scope = null, plus = true;
         if (addW || subW) { scope = "week"; plus = !!addW; }
         if (addM || subM) { scope = "month"; plus = !!addM; }
-        if (!scope) return;
+        if (!scope || !bsModal) return;
 
-        if (!bsModal) return;
-
-        // Título, preset y bloqueo del "." y ","
+        // Estado inicial del modal
         mScope.value = scope;
         mMonto.value = "";
         mMotivo.value = "";
         mMonto.dataset.sign = plus ? "1" : "-1";
         mTitle.textContent = plus ? "Sumar" : "Descontar";
 
+        // opId único por APERTURA del modal (idempotencia en Firestore)
+        _currentOpId = (crypto?.randomUUID?.() || `${Date.now()}-${Math.floor(Math.random() * 1e6)}`);
+
+        // Bloqueo de ".", "," y normalización del input
         const keydownBlock = (e) => { if (e.key === "." || e.key === ",") e.preventDefault(); };
         const inputClean = () => {
             const cleaned = mMonto.value.replace(/[.,]/g, "");
@@ -547,13 +558,18 @@ function wireCardActions(dni) {
         mMonto.addEventListener("keydown", keydownBlock);
         mMonto.addEventListener("input", inputClean);
 
-        const onSave = async () => {
+        // Evitar listeners acumulados
+        if (_saveHandlerRef) mSave.removeEventListener("click", _saveHandlerRef);
+
+        _saveHandlerRef = async (e) => {
+            e.preventDefault();
             const sign = Number(mMonto.dataset.sign) || 1;
             const raw = toNum(mMonto.value);
-            if (!raw) return;
+            if (!raw || mSave.dataset.busy === "1") return; // guardas anti doble click
 
-            // evitar doble click
+            mSave.dataset.busy = "1";
             mSave.disabled = true;
+
             try {
                 await addAjuste({
                     dni,
@@ -561,7 +577,8 @@ function wireCardActions(dni) {
                     baseDate: CURRENT_DATE,
                     monto: raw * sign,
                     motivo: mMotivo.value,
-                    by: first(findName(dni))
+                    by: first(findName(dni)),
+                    opId: _currentOpId, // ⟵ clave para NO duplicar en Firestore
                 });
                 bsModal.hide();
                 await setPersona(dni);
@@ -570,12 +587,26 @@ function wireCardActions(dni) {
                 alert("No se pudo guardar el ajuste. Intentá de nuevo.");
             } finally {
                 mSave.disabled = false;
-                mMonto.removeEventListener("keydown", keydownBlock);
-                mMonto.removeEventListener("input", inputClean);
+                mSave.dataset.busy = "";
             }
         };
 
-        mSave.addEventListener("click", onSave, { once: true });
+        mSave.addEventListener("click", _saveHandlerRef);
+
+        // Enter dentro del monto → click en Guardar (sin doble-submit)
+        const enterHandler = (e) => { if (e.key === "Enter") { e.preventDefault(); mSave.click(); } };
+        mMonto.addEventListener("keydown", enterHandler);
+
+        // Limpieza al cerrar modal (evita acumulaciones entre aperturas)
+        modal.addEventListener("hidden.bs.modal", () => {
+            if (_saveHandlerRef) mSave.removeEventListener("click", _saveHandlerRef);
+            mMonto.removeEventListener("keydown", keydownBlock);
+            mMonto.removeEventListener("input", inputClean);
+            mMonto.removeEventListener("keydown", enterHandler);
+            _saveHandlerRef = null;
+            _currentOpId = null;
+        }, { once: true });
+
         bsModal.show();
     };
 
@@ -584,7 +615,6 @@ function wireCardActions(dni) {
         const btn = ev.target.closest(".aj-del");
         if (!btn) return;
 
-        // popular modal
         $("#delAjPersona").textContent = btn.dataset.persona || "-";
         $("#delAjScope").textContent = btn.dataset.scope === "week" ? "Semana" : "Mes";
         $("#delAjPeriodo").textContent = btn.dataset.periodo || "-";
@@ -596,6 +626,7 @@ function wireCardActions(dni) {
         modalEliminarAjuste?.show();
     });
 }
+
 
 // Confirmación del modal “Eliminar ajuste”
 async function onConfirmDeleteAjuste(ev) {

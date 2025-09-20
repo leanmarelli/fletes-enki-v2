@@ -33,16 +33,37 @@ async function hydrateSelectFleteroForForm() {
             .map(d => ({ dni: d.id, ...(d.data() || {}) }))
             .sort((a, b) => (a.name || a.dni).localeCompare(b.name || b.dni, "es"));
 
+        // 1) Opciones nativas (para validación del navegador)
         const dniQ = new URLSearchParams(location.search).get("dni") || "";
+        select.innerHTML = `<option value="">Elegir persona</option>`;
+        for (const x of data) {
+            const op = document.createElement("option");
+            op.value = x.dni;
+            op.textContent = x.car ? `${x.name} (${x.car})` : (x.name || x.dni);
+            if (dniQ && x.dni === dniQ) op.selected = true; // preselect si vino por query
+            select.appendChild(op);
+        }
+
+        // 2) Mejora visual: mantiene el <select> sincronizado
         enhanceColorSelect(select, data, {
             placeholder: "Elegir persona",
-            preselect: dniQ,
-            onChange: (dni) => { /* NO redirige; solo mantiene valor para el form */ }
+            preselect: select.value || "", // lo que haya quedado arriba
+            onChange: (dni) => {
+                // sincronia con el control nativo (esto hace que "required" pase)
+                select.value = dni || "";
+                // marcá selected en la opción correspondiente por las dudas
+                select.querySelectorAll("option").forEach(o => o.selected = (o.value === dni));
+                // notificar a quien escuche
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+                select.setCustomValidity(""); // limpia mensaje de validación si lo hubo
+            }
         });
+
     } catch (e) {
         console.error("No se pudo cargar el listado de fleteros:", e);
     }
 }
+
 
 
 /* ------------------------- modales ------------------------------ */
@@ -81,6 +102,19 @@ function bootModals() {
 /* --------------------------- submit ----------------------------- */
 const form = document.getElementById("new-trip-form");
 form.addEventListener("submit", async (e) => {
+    // Si el navegador encuentra required vacío, ni siquiera dispara "submit".
+    // Pero por si venís de un submit programático:
+    const sel = document.getElementById("fletero");
+    if (!sel.value && sel.dataset?.value) sel.value = sel.dataset.value; // fallback si tu enhancer guarda en data-value
+
+    if (!sel.value) {
+        e.preventDefault();
+        const err = document.getElementById("errorDetails");
+        if (err) err.textContent = "Seleccioná un fletero antes de guardar.";
+        modalError?.show();
+        return;
+    }
+
     e.preventDefault();
     e.stopPropagation();
 
