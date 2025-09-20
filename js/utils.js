@@ -27,16 +27,28 @@ const firebaseConfig = {
     appId: "1:1091950041596:web:b6c0e2942f92eafad93a79"
 };
 
+// Detectar entorno local (localhost, 127.0.0.1, ::1 o file://)
+const isLocalhost =
+    ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname) ||
+    location.protocol === "file:";
+
+// Settings de Firestore
+const fsSettings = {
+    localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+    }),
+    // En local, forzamos long-polling (evita timeouts/negociación del stream)
+    ...(isLocalhost ? {
+        experimentalForceLongPolling: true,
+        useFetchStreams: false
+    } : {})
+};
+
 // App única:
 export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 // IMPORTANTÍSIMO: llamar initializeFirestore **ANTES** que cualquier getFirestore.
-// De esta forma todos los módulos comparten la misma instancia con cache.
-export const db = initializeFirestore(app, {
-    localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-    })
-});
+export const db = initializeFirestore(app, fsSettings);
 
 // Re-exportá utilidades de Firestore para no importar el CDN en cada archivo
 export {
