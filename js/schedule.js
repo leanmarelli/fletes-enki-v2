@@ -240,19 +240,31 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
     const descargaTxt = `${c.direccionDescarga || ""}, ${c.localidadDescarga || ""}`;
 
     const adminBtnHtml = isAdmin ? `
-      <button data-visible-for="admin"
-              class="btn btn-light btn-icon ms-2 btn-delete-trip btn-trash"
-              data-admin-action
-              title="Eliminar"
-              data-doc-id="${viaje.__id}"
-              data-dni="${CURRENT_DNI}"
-              data-cliente="${esc(c.nombre || "")}"
-              data-horario="${esc(c.horario || "")}"
-              data-carga="${esc(cargaTxt)}"
-              data-descarga="${esc(descargaTxt)}">
-        <i class="bi bi-trash3"></i>
-      </button>
+      <div class="d-flex align-items-center" data-visible-for="admin" data-admin-action>
+        <button
+          class="btn btn-light btn-icon ms-2 btn-edit-trip"
+          title="Editar"
+          data-doc-id="${viaje.__id}"
+          data-dni="${CURRENT_DNI}"
+        >
+          <i class="bi bi-pencil-square"></i>
+        </button>
+
+        <button
+          class="btn btn-light btn-icon ms-2 btn-delete-trip btn-trash"
+          title="Eliminar"
+          data-doc-id="${viaje.__id}"
+          data-dni="${CURRENT_DNI}"
+          data-cliente="${esc(c.nombre || "")}"
+          data-horario="${esc(c.horario || "")}"
+          data-carga="${esc(cargaTxt)}"
+          data-descarga="${esc(descargaTxt)}"
+        >
+          <i class="bi bi-trash3"></i>
+        </button>
+      </div>
     ` : ``;
+
 
     const card = document.createElement("div");
     card.className = "viaje mb-4 p-0 shadow-sm";
@@ -269,13 +281,26 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
 
     const totalCobrarViaje = bruto + (showHelpers ? totalAy : 0);
 
+    // clic en Editar → navegar a new-trip con modo edición
+    contViajes.addEventListener("click", (e) => {
+      const btn = e.target.closest(".btn-edit-trip");
+      if (!btn) return;
 
-    const helpersFooter = showHelpers ? `
-  <div class="ayudantes-info text-end mt-1">
-    <small class="text-white-50">Total a ayudantes:</small>
-    <span class="ms-2 fw-semibold">${cantAy} × $${formatMoney(precioAy)} = $${formatMoney(totalAy)}</span>
-  </div>
-` : "";
+      const dni = btn.dataset.dni;
+      const id = btn.dataset.docId;
+
+      // URL de retorno (vuelve a la agenda actual)
+      const returnTo = `${location.pathname}${location.search}`;
+      const params = new URLSearchParams({
+        mode: "edit",
+        dni,
+        id,
+        return: returnTo
+      });
+
+      location.href = `new-trip.html?${params.toString()}`;
+    });
+
     card.innerHTML = `
       <div class="d-flex align-items-stretch">
         <div class="barra-lateral" style="background:${color};">
