@@ -52,27 +52,21 @@ function renderTotalesDia(viajes, feePct = 0, driverName = "") {
   const box = document.getElementById("totales-dia");
   if (!box) return;
 
-  // ⬇️ Si no hay viajes, oculto el resumen
+  // Ocultar si no hay viajes
   if (!viajes || viajes.length === 0) {
     box.innerHTML = "";
     box.classList.remove("sd-card", "p-3");
     return;
   }
 
-  const {
-    totalCobrar, totalAyudantes, totalBrutoChofer, cantAyudantes, helperUnit
-  } = computeDiaTotals(viajes);
+  const { totalBrutoChofer } = computeDiaTotals(viajes);
 
-  const ayudantesLine = (totalAyudantes > 0)
-    ? `<div class="line mb-2 muted">
-         <span>Total ayudantes</span>
-         <span>$${formatMoney(totalAyudantes)} ${helperUnit ? `(${formatMoney(helperUnit)} c/u)` : ""}</span>
-       </div>`
-    : "";
+  // "Cobrado" es lo del viaje (sin ayudantes)
+  const cobrado = totalBrutoChofer;
 
-  const expr = (totalAyudantes > 0)
-    ? `$${formatMoney(totalCobrar)} - $${formatMoney(totalAyudantes)}`
-    : "";
+  // Comisión: mostrar el monto de la comisión (no el neto)
+  const pct = Number(feePct) || 0;
+  const montoComision = Math.round(cobrado * pct / 100);
 
   box.classList.add("sd-card", "p-3");
   box.innerHTML = `
@@ -82,23 +76,19 @@ function renderTotalesDia(viajes, feePct = 0, driverName = "") {
     </div>
 
     <div class="line mb-2">
-      <span>Total a cobrar</span>
-      <span class="fw-semibold">$${formatMoney(totalCobrar)}</span>
+      <span>Cobrado</span>
+      <span class="fw-semibold">$${formatMoney(cobrado)}</span>
     </div>
 
-    ${ayudantesLine}
-
-    <hr class="my-2">
-    ${expr ? `<div class="text-end small muted">${expr}</div>` : ``}
-    <div class="line mb-1">
-      <span class="fw-semibold">Total a rendir</span>
-      <span class="display-total">$${formatMoney(totalBrutoChofer)}</span>
-    </div>
-    
+    ${pct > 0 ? `
+      <hr class="my-2">
+      <div class="line mb-1">
+        <span class="fw-semibold">Comisión (${pct}%)</span>
+        <span class="display-total">$${formatMoney(montoComision)}</span>
+      </div>
+    ` : ``}
   `;
 }
-
-
 
 
 // prefijos de país para WhatsApp
@@ -250,19 +240,31 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
     const descargaTxt = `${c.direccionDescarga || ""}, ${c.localidadDescarga || ""}`;
 
     const adminBtnHtml = isAdmin ? `
-      <button data-visible-for="admin"
-              class="btn btn-light btn-icon ms-2 btn-delete-trip btn-trash"
-              data-admin-action
-              title="Eliminar"
-              data-doc-id="${viaje.__id}"
-              data-dni="${CURRENT_DNI}"
-              data-cliente="${esc(c.nombre || "")}"
-              data-horario="${esc(c.horario || "")}"
-              data-carga="${esc(cargaTxt)}"
-              data-descarga="${esc(descargaTxt)}">
-        <i class="bi bi-trash3"></i>
-      </button>
+      <div class="d-flex align-items-center" data-visible-for="admin" data-admin-action>
+        <button
+          class="btn btn-light btn-icon ms-2 btn-edit-trip"
+          title="Editar"
+          data-doc-id="${viaje.__id}"
+          data-dni="${CURRENT_DNI}"
+        >
+          <i class="bi bi-pencil-square"></i>
+        </button>
+
+        <button
+          class="btn btn-light btn-icon ms-2 btn-delete-trip btn-trash"
+          title="Eliminar"
+          data-doc-id="${viaje.__id}"
+          data-dni="${CURRENT_DNI}"
+          data-cliente="${esc(c.nombre || "")}"
+          data-horario="${esc(c.horario || "")}"
+          data-carga="${esc(cargaTxt)}"
+          data-descarga="${esc(descargaTxt)}"
+        >
+          <i class="bi bi-trash3"></i>
+        </button>
+      </div>
     ` : ``;
+
 
     const card = document.createElement("div");
     card.className = "viaje mb-4 p-0 shadow-sm";
@@ -279,13 +281,26 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
 
     const totalCobrarViaje = bruto + (showHelpers ? totalAy : 0);
 
+    // clic en Editar → navegar a new-trip con modo edición
+    contViajes.addEventListener("click", (e) => {
+      const btn = e.target.closest(".btn-edit-trip");
+      if (!btn) return;
 
-    const helpersFooter = showHelpers ? `
-  <div class="ayudantes-info text-end mt-1">
-    <small class="text-white-50">Total a ayudantes:</small>
-    <span class="ms-2 fw-semibold">${cantAy} × $${formatMoney(precioAy)} = $${formatMoney(totalAy)}</span>
-  </div>
-` : "";
+      const dni = btn.dataset.dni;
+      const id = btn.dataset.docId;
+
+      // URL de retorno (vuelve a la agenda actual)
+      const returnTo = `${location.pathname}${location.search}`;
+      const params = new URLSearchParams({
+        mode: "edit",
+        dni,
+        id,
+        return: returnTo
+      });
+
+      location.href = `new-trip.html?${params.toString()}`;
+    });
+
     card.innerHTML = `
       <div class="d-flex align-items-stretch">
         <div class="barra-lateral" style="background:${color};">
@@ -332,18 +347,18 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
           
           ${showHelpers ? `
             <div class="text-white-50 small mt-1 d-flex justify-content-between align-items-center gap-2">
-              Total a ayudantes: <b class="text-white">$${formatMoney(totalAy)}</b>
+            Precio flete: <b class="text-white">$${formatMoney(bruto)}</b>
             </div>
             <div class="text-white-50 small mt-1 d-flex justify-content-between align-items-center gap-2">
-            Total a rendir: <b class="text-white">$${formatMoney(bruto)}</b>
+              Total a ayudantes: <b class="text-white">$${formatMoney(totalAy)}</b>
             </div>
             <div class="d-flex justify-content-between align-items-center gap-2">
-              <small class="mb-0 text-white fw-semibold">Total a cobrar: </small>
+              <small class="mb-0 text-white fw-semibold">Cobrar: </small>
               <h3 class="mb-0 text-white">$${formatMoney(totalCobrarViaje)}</h3>
             </div>
           ` : `
           <div class="d-flex justify-content-between align-items-center gap-2">
-              <small class="mb-0 text-white mr-5">Total a cobrar: </small>
+              <small class="mb-0 text-white mr-5">Cobrar: </small>
               <h3 class="mb-0 text-white"> $${formatMoney(totalCobrarViaje)}</h3>
             </div>
           `}
