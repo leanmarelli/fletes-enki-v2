@@ -7,18 +7,168 @@ import {
   query, where, showLoading
 } from "./utils.js";
 
+// ===== Datepicker en MODAL (inline) con contadores =====
+let FP = null;                            // instancia flatpickr (modal)
+const monthCountCache = new Map();        // `${dni}:${YYYY-MM}` -> { 'YYYY-MM-DD': count }
+let DATE_MODAL = null;                    // instancia bootstrap.Modal
+let CURRENT_COLOR = "#135322";            // color del fletero activo
+
+/** Devuelve {'YYYY-MM-DD': cantidad} para un mes */
+async function fetchMonthCounts(dni, year, month) {
+  const ym = `${year}-${String(month).padStart(2, "0")}`;
+  const cacheKey = `${dni}:${ym}`;
+  if (monthCountCache.has(cacheKey)) return monthCountCache.get(cacheKey);
+
+  const itemsRef = collection(db, "viajes", dni, "items");
+  const counts = {};
+
+  try {
+    const q1 = query(itemsRef, where("ym", "==", ym));
+    const qs1 = await getDocs(q1);
+    qs1.forEach(s => {
+      const v = s.data() || {};
+      const f = v.fecha || v.cliente?.fecha;
+      if (f) counts[f] = (counts[f] || 0) + 1;
+    });
+    monthCountCache.set(cacheKey, counts);
+    return counts;
+  } catch { }
+
+  try {
+    const start = `${ym}-01`, end = `${ym}-31`;
+    const q2 = query(itemsRef, where("fecha", ">=", start), where("fecha", "<=", end));
+    const qs2 = await getDocs(q2);
+    qs2.forEach(s => {
+      const v = s.data() || {};
+      const f = v.fecha || v.cliente?.fecha;
+      if (f) counts[f] = (counts[f] || 0) + 1;
+    });
+    monthCountCache.set(cacheKey, counts);
+    return counts;
+  } catch {
+    const all = await getDocs(itemsRef);
+    all.forEach(s => {
+      const v = s.data() || {};
+      const f = v.fecha || v.cliente?.fecha;
+      if (f?.startsWith(ym)) counts[f] = (counts[f] || 0) + 1;
+    });
+    monthCountCache.set(cacheKey, counts);
+    return counts;
+  }
+}
+
+/** Asegura que el mes visible esté decorado */
+async function ensureMonthDecorations(instance, dni) {
+  const y = instance.currentYear;
+  const m = instance.currentMonth + 1;
+  await fetchMonthCounts(dni, y, m);
+  instance.redraw(); // dispara onDayCreate
+}
+
+/** Inicializa el calendario inline dentro del modal */
+function initModalDatePicker(dni, colorHex = "#135322") {
+  const host = document.getElementById("modalCalendarHost");
+  if (!host) return;
+
+  FP = flatpickr(host, {
+  inline: true,
+  locale: "es",
+  dateFormat: "Y-m-d",
+  defaultDate: CURRENT_DATE || new Date(),
+  disableMobile: true,
+
+    onReady: async (_s, _t, inst) => {
+      await ensureMonthDecorations(inst, inst.__dni);
+      prefetchNeighbors(inst.__dni, inst);
+    },
+    onMonthChange: async (_s, _t, inst) => {
+      await ensureMonthDecorations(inst, inst.__dni);
+      prefetchNeighbors(inst.__dni, inst);
+    },
+    onYearChange: async (_s, _t, inst) => {
+      await ensureMonthDecorations(inst, inst.__dni);
+      prefetchNeighbors(inst.__dni, inst);
+    },
+
+
+    // contador por día (dot)
+    // contador por día (dot)
+    onDayCreate: function (_sel, _str, inst, dayElem) {
+      if (
+        dayElem.classList.contains("prevMonthDay") ||
+        dayElem.classList.contains("nextMonthDay") ||
+        dayElem.classList.contains("disabled")
+      ) return;
+
+      const d = dayElem.dateObj;
+      if (!d) return;
+
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      const ym = `${y}-${m}`;
+      const ymd = `${ym}-${dd}`;
+
+      const counts = monthCountCache.get(`${inst.__dni}:${ym}`);
+      const count = counts?.[ymd] || 0;
+      if (!count) return;
+
+      dayElem.classList.add("has-trips");
+
+      const badge = document.createElement("span");
+      badge.className = "trip-badge";
+      if (count >= 100) badge.classList.add("badge-3d");
+      else if (count >= 10) badge.classList.add("badge-2d");
+
+      badge.style.background = inst.__colorHex || "#135322";
+      badge.textContent = count >= 100 ? "99+" : String(count);
+      dayElem.appendChild(badge);
+    },
+
+
+    // elegir fecha => actualiza agenda y cierra modal
+    onChange: function (_sel, dateStr) {
+      if (!dateStr) return;
+      updateDateChipLabel(dateStr);
+      cargarAgenda(dateStr);
+      DATE_MODAL?.hide();
+    }
+  });
+
+  // metadata para reutilizar instancia
+  FP.__dni = dni;
+  FP.__colorHex = colorHex;
+}
+
+/** Abre el modal y sincroniza el mes/fecha */
+async function openDateModal() {
+  if (!DATE_MODAL) {
+    const modalEl = document.getElementById("dateModal");
+    DATE_MODAL = new bootstrap.Modal(modalEl);
+  }
+  if (!FP) initModalDatePicker(CURRENT_DNI, CURRENT_COLOR);
+
+  // sincronizar fecha visible + conteos del mes actual
+  FP.setDate(CURRENT_DATE || new Date(), false);
+  const d = stringToDate(CURRENT_DATE || formatDateToYYYYMMDD(new Date()));
+  await fetchMonthCounts(CURRENT_DNI, d.getFullYear(), d.getMonth() + 1);
+  FP.redraw();
+
+  DATE_MODAL.show();
+}
+
 // ----------------------------------------------------
 // Estado y helpers
 // ----------------------------------------------------
 let CURRENT_DATE = "";                 // YYYY-MM-DD de la agenda visible
-let CURRENT_DNI = "";                 // DNI actual
+let CURRENT_DNI = "";                  // DNI actual
 let deleteTarget = { dni: null, docId: null };
 let modalEliminar = null;
 
 function computeDiaTotals(viajes) {
-  let totalServicio = 0;      // suma de precioServicio
-  let totalAyudantes = 0;     // suma de cant * precio (solo si cant>0 y precio>0)
-  let cantAyudantes = 0;      // cantidad total de ayudantes (sumada)
+  let totalServicio = 0;
+  let totalAyudantes = 0;
+  let cantAyudantes = 0;
   const unitPrices = new Set();
 
   for (const v of viajes) {
@@ -41,24 +191,27 @@ function computeDiaTotals(viajes) {
   return {
     totalCobrar: totalServicio + totalAyudantes,
     totalAyudantes,
-    totalBrutoChofer: totalServicio, // = Total a cobrar - Total a ayudantes
+    totalBrutoChofer: totalServicio,
     cantAyudantes,
     helperUnit
   };
 }
 
-
 function renderTotalesDia(viajes, feePct = 0, driverName = "") {
   const box = document.getElementById("totales-dia");
   if (!box) return;
 
+<<<<<<< Updated upstream
   // ⬇️ Si no hay viajes, oculto el resumen
+=======
+>>>>>>> Stashed changes
   if (!viajes || viajes.length === 0) {
     box.innerHTML = "";
     box.classList.remove("sd-card", "p-3");
     return;
   }
 
+<<<<<<< Updated upstream
   const {
     totalCobrar, totalAyudantes, totalBrutoChofer, cantAyudantes, helperUnit
   } = computeDiaTotals(viajes);
@@ -73,6 +226,13 @@ function renderTotalesDia(viajes, feePct = 0, driverName = "") {
   const expr = (totalAyudantes > 0)
     ? `$${formatMoney(totalCobrar)} - $${formatMoney(totalAyudantes)}`
     : "";
+=======
+  const { totalBrutoChofer } = computeDiaTotals(viajes);
+  const cobrado = totalBrutoChofer;
+
+  const pct = Number(feePct) || 0;
+  const montoComision = Math.round(cobrado * pct / 100);
+>>>>>>> Stashed changes
 
   box.classList.add("sd-card", "p-3");
   box.innerHTML = `
@@ -98,9 +258,12 @@ function renderTotalesDia(viajes, feePct = 0, driverName = "") {
   `;
 }
 
+<<<<<<< Updated upstream
 
 
 
+=======
+>>>>>>> Stashed changes
 // prefijos de país para WhatsApp
 const DIAL_BY_ISO = { AR: "54", UY: "598", CL: "56", PY: "595" };
 
@@ -179,10 +342,20 @@ function renderDayNavigator(fecha, onChange) {
       <span class="dow">${next.prevDow}</span><small class="dom">${next.prevDom}</small>
     </button>
   `;
-  nav.querySelectorAll("[data-date]").forEach(el => el.addEventListener("click", () => onChange(el.dataset.date)));
+  nav.querySelectorAll("[data-date]").forEach(el =>
+    el.addEventListener("click", () => {
+      if (FP) FP.setDate(el.dataset.date, true);
+      else onChange(el.dataset.date);
+    })
+  );
+
   nav.onkeydown = (ev) => {
-    if (ev.key === "ArrowLeft") onChange(prev.value);
-    if (ev.key === "ArrowRight") onChange(next.value);
+    if (ev.key === "ArrowLeft") {
+      if (FP) FP.setDate(prev.value, true); else onChange(prev.value);
+    }
+    if (ev.key === "ArrowRight") {
+      if (FP) FP.setDate(next.value, true); else onChange(next.value);
+    }
   };
 }
 
@@ -202,12 +375,12 @@ async function getFletero(dni) {
 async function getViajesPorDia(dni, fechastr) {
   const itemsRef = collection(db, "viajes", dni, "items");
   try {
-    const qy = query(itemsRef, where("fecha", "==", fechastr));           // requiere campo denormalizado "fecha"
+    const qy = query(itemsRef, where("fecha", "==", fechastr));
     const qs = await getDocs(qy);
     if (!qs.empty) return qs.docs.map(d => ({ __id: d.id, ...d.data() }));
-  } catch { /* si no existe índice/campo, fallback */ }
+  } catch { }
 
-  const snap = await getDocs(itemsRef);                                   // fallback
+  const snap = await getDocs(itemsRef);
   const out = [];
   snap.forEach(d => {
     const v = d.data();
@@ -234,22 +407,25 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
     return;
   }
 
-
   const frag = document.createDocumentFragment();
 
   viajes.forEach(viaje => {
     const c = viaje.cliente || {};
     const ayud = viaje.ayudantes || {};
-    const ayudantesText = ayud.cantidad > 0 ? `${ayud.cantidad} | $${ayud.precio || 0}` : "No";
 
     const color = colorHex || "#ffc107";
-    const bruto = Number(c.precioServicio) || 0;                         // total sin comisión
-    const neto = feePct ? Math.round(bruto * (1 - (Number(feePct) || 0) / 100)) : bruto;
+    const bruto = Number(c.precioServicio) || 0;
+    const cantAy = Number(ayud.cantidad) || 0;
+    const precioAy = Number(ayud.precio) || 0;
+    const totalAy = cantAy * precioAy;
+    const showHelpers = cantAy > 0 && precioAy > 0;
+    const totalCobrarViaje = bruto + (showHelpers ? totalAy : 0);
 
     const cargaTxt = `${c.direccionCarga || ""}, ${c.localidadCarga || ""}`;
     const descargaTxt = `${c.direccionDescarga || ""}, ${c.localidadDescarga || ""}`;
 
     const adminBtnHtml = isAdmin ? `
+<<<<<<< Updated upstream
       <button data-visible-for="admin"
               class="btn btn-light btn-icon ms-2 btn-delete-trip btn-trash"
               data-admin-action
@@ -286,6 +462,29 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
     <span class="ms-2 fw-semibold">${cantAy} × $${formatMoney(precioAy)} = $${formatMoney(totalAy)}</span>
   </div>
 ` : "";
+=======
+      <div class="d-flex align-items-center" data-visible-for="admin" data-admin-action>
+        <button class="btn btn-light btn-icon ms-2 btn-edit-trip" title="Editar"
+          data-doc-id="${viaje.__id}" data-dni="${CURRENT_DNI}">
+          <i class="bi bi-pencil-square"></i>
+        </button>
+        <button class="btn btn-light btn-icon ms-2 btn-delete-trip btn-trash" title="Eliminar"
+          data-doc-id="${viaje.__id}" data-dni="${CURRENT_DNI}"
+          data-cliente="${esc(c.nombre || "")}" data-horario="${esc(c.horario || "")}"
+          data-carga="${esc(cargaTxt)}" data-descarga="${esc(descargaTxt)}">
+          <i class="bi bi-trash3"></i>
+        </button>
+      </div>
+    ` : ``;
+
+    const helpersBody = showHelpers ? `
+      <small class="mb-0">Ayudantes:</small>
+      <div class="mb-1"><b>${cantAy} | $${formatMoney(precioAy)}</b></div>
+    ` : "";
+
+    const card = document.createElement("div");
+    card.className = "viaje mb-4 p-0 shadow-sm";
+>>>>>>> Stashed changes
     card.innerHTML = `
       <div class="d-flex align-items-stretch">
         <div class="barra-lateral" style="background:${color};">
@@ -328,7 +527,9 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
 
             ${helpersBody}
           </div>
+
           <div class="precio-badge">
+<<<<<<< Updated upstream
           
           ${showHelpers ? `
             <div class="text-white-50 small mt-1 d-flex justify-content-between align-items-center gap-2">
@@ -354,6 +555,26 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
 
         </div>
 
+=======
+            ${showHelpers ? `
+              <div class="text-white-50 small mt-1 d-flex justify-content-between align-items-center gap-2">
+                Precio flete: <b class="text-white">$${formatMoney(bruto)}</b>
+              </div>
+              <div class="text-white-50 small mt-1 d-flex justify-content-between align-items-center gap-2">
+                Total a ayudantes: <b class="text-white">$${formatMoney(totalAy)}</b>
+              </div>
+              <div class="d-flex justify-content-between align-items-center gap-2">
+                <small class="mb-0 text-white fw-semibold">Cobrar: </small>
+                <h3 class="mb-0 text-white">$${formatMoney(totalCobrarViaje)}</h3>
+              </div>
+            ` : `
+              <div class="d-flex justify-content-between align-items-center gap-2">
+                <small class="mb-0 text-white mr-5">Cobrar: </small>
+                <h3 class="mb-0 text-white">$${formatMoney(totalCobrarViaje)}</h3>
+              </div>
+            `}
+          </div>
+>>>>>>> Stashed changes
         </div>
       </div>
     `;
@@ -368,35 +589,52 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
 // ----------------------------------------------------
 async function cargarAgenda(fechastr) {
   showLoading(true);
-  CURRENT_DATE = fechastr;
-  const dni = getDniFromUrl();
-  if (!dni) return;
-  CURRENT_DNI = dni;
+  try {
+    CURRENT_DATE = fechastr;
 
-  const [fletero, viajesRaw] = await Promise.all([
-    getFletero(dni),
-    getViajesPorDia(dni, fechastr)
-  ]);
-  if (!fletero) return;
+    const dni = getDniFromUrl();
+    if (!dni) return;
+    CURRENT_DNI = dni;
 
-  document.getElementById("titulo-agenda").innerText = `Agenda de ${fletero.name}`;
-  document.documentElement.style.setProperty("--color-primario", fletero.colorHex || "#135322");
+    const [fletero, viajesRaw] = await Promise.all([
+      getFletero(dni),
+      getViajesPorDia(dni, fechastr)
+    ]);
+    if (!fletero) return;
 
-  const feePct = Number(fletero.fee ?? fletero.comision ?? 0);
-  const country = (fletero.country || fletero.countryIso || "AR").toUpperCase();
-  const viajes = sortPorHorario(viajesRaw);
+    // color y metadata del modal
+    const color = fletero.colorHex || "#135322";
+    CURRENT_COLOR = color;
+    if (FP) { FP.__dni = CURRENT_DNI; FP.__colorHex = CURRENT_COLOR; }
 
-  const isAdmin = (window?.currentUser?.permission || "").toLowerCase() === "admin";
+    // si el calendario ya existe, sincronizá fecha/mes y decoraciones
+    if (FP) {
+      FP.setDate(fechastr, false);
+      const d = stringToDate(fechastr);
+      await fetchMonthCounts(dni, d.getFullYear(), d.getMonth() + 1);
+      FP.redraw();
+    } else {
+      // si aún no existe, al menos precargá conteos del mes actual para que el modal abra listo
+      const d = stringToDate(fechastr);
+      await fetchMonthCounts(dni, d.getFullYear(), d.getMonth() + 1);
+    }
 
-  renderViajes(viajes, fletero.colorHex, feePct, country, isAdmin);
-  renderTotalesDia(viajes, feePct, fletero.name);
-  renderDayNavigator(fechastr, (newDate) => cargarAgenda(newDate));
+    // UI agenda
+    document.getElementById("titulo-agenda").innerText = `Agenda de ${fletero.name}`;
+    document.documentElement.style.setProperty("--color-primario", color);
 
-  const dp = document.getElementById("datePicker");
-  if (dp) dp.value = fechastr;
-  updateDateChipLabel(fechastr);
+    const feePct = Number(fletero.fee ?? fletero.comision ?? 0);
+    const country = (fletero.country || fletero.countryIso || "AR").toUpperCase();
+    const viajes = sortPorHorario(viajesRaw);
+    const isAdmin = (window?.currentUser?.permission || "").toLowerCase() === "admin";
 
-  showLoading(false);
+    renderViajes(viajes, color, feePct, country, isAdmin);
+    renderTotalesDia(viajes, feePct, fletero.name);
+    renderDayNavigator(fechastr, (newDate) => cargarAgenda(newDate));
+    updateDateChipLabel(fechastr);
+  } finally {
+    showLoading(false);
+  }
 }
 
 function getDateFromUrlParam() {
@@ -409,63 +647,47 @@ function getDateFromUrlParam() {
 // Boot
 // ----------------------------------------------------
 document.addEventListener("DOMContentLoaded", () => {
-  const datePicker = document.getElementById("datePicker");
-  const dateChip = document.getElementById("dateChip");
-  const btnHoy = document.getElementById("btnHoy");
+  // modal eliminar (si existe en el DOM)
   const modalEl = document.getElementById("modalEliminarViaje");
-
   if (modalEl && window.bootstrap) modalEliminar = new bootstrap.Modal(modalEl);
 
+  // abrir modal al tocar el chip
+  document.getElementById("dateChip")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    openDateModal();
+  });
+
+  // botón "Hoy" del modal
+  document.getElementById("btnModalToday")?.addEventListener("click", () => {
+    const today = formatDateToYYYYMMDD(new Date());
+    if (FP) FP.setDate(today, true);  // true -> dispara onChange => carga agenda y cierra
+  });
+
   const initial = getDateFromUrlParam() || formatDateToYYYYMMDD(new Date());
-
-  if (datePicker) {
-    datePicker.value = initial;
-    updateDateChipLabel(initial);
-  }
+  updateDateChipLabel(initial);
   cargarAgenda(initial);
-
-  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent)
-    || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
-  datePicker?.addEventListener("change", (e) => {
-    const v = e.target.value;
-    if (v) {
-      updateDateChipLabel(v);
-      cargarAgenda(v);
-    }
-  });
-
-  if (isIOS) {
-    try { datePicker.type = "date"; } catch (e) { }
-    datePicker.classList.remove("visually-hidden");
-    datePicker.classList.add("ios-date-overlay");
-    dateChip?.setAttribute("aria-hidden", "true");
-    dateChip?.setAttribute("tabindex", "-1");
-  } else {
-    dateChip?.addEventListener("click", (e) => {
-      e.preventDefault();
-      if (typeof datePicker.showPicker === "function") {
-        datePicker.showPicker();
-      } else {
-        datePicker.focus();
-        datePicker.click();
-      }
-    });
-  }
-
-  btnHoy?.addEventListener("click", () => {
-    const todayStr = formatDateToYYYYMMDD(new Date());
-    if (datePicker) datePicker.value = todayStr;
-    updateDateChipLabel(todayStr);
-    cargarAgenda(todayStr);
-  });
 });
 
 // ----------------------------------------------------
-// Interacciones (eliminar / copiar)
+// Interacciones (editar / eliminar / copiar)
 // ----------------------------------------------------
 const contViajes = document.getElementById("viajes-dia");
+
+// Editar
 if (contViajes) {
+  contViajes.addEventListener("click", (e) => {
+    const btnEdit = e.target.closest(".btn-edit-trip");
+    if (btnEdit) {
+      const dni = btnEdit.dataset.dni;
+      const id = btnEdit.dataset.docId;
+      const returnTo = `${location.pathname}${location.search}`;
+      const params = new URLSearchParams({ mode: "edit", dni, id, return: returnTo });
+      location.href = `new-trip.html?${params.toString()}`;
+      return;
+    }
+  });
+
+  // Eliminar
   contViajes.addEventListener("click", (e) => {
     const btn = e.target.closest(".btn-delete-trip");
     if (!btn) return;
@@ -481,6 +703,7 @@ if (contViajes) {
     modalEliminar?.show();
   });
 
+  // Copiar
   contViajes.addEventListener("click", async (e) => {
     const btn = e.target.closest(".copy-btn");
     if (!btn) return;
@@ -536,4 +759,22 @@ function formatYYYYMMDDtoDDMMYYYY(str = "") {
 function updateDateChipLabel(yyyy_mm_dd) {
   const lab = document.getElementById("dateChipLabel");
   if (lab) lab.textContent = formatYYYYMMDDtoDDMMYYYY(yyyy_mm_dd);
+}
+
+// Debug rápido desde consola
+window.__debugMonth = async function () {
+  const d = stringToDate(CURRENT_DATE);
+  const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const m = await fetchMonthCounts(CURRENT_DNI, d.getFullYear(), d.getMonth() + 1);
+  console.log("Counts", CURRENT_DNI, ym, m);
+};
+
+async function prefetchNeighbors(dni, inst) {
+  const y = inst.currentYear, m = inst.currentMonth + 1;
+  const prev = new Date(y, m - 2, 1);
+  const next = new Date(y, m, 1);
+  await Promise.all([
+    fetchMonthCounts(dni, prev.getFullYear(), prev.getMonth() + 1),
+    fetchMonthCounts(dni, next.getFullYear(), next.getMonth() + 1),
+  ]);
 }
