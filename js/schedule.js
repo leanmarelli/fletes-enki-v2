@@ -201,38 +201,17 @@ function renderTotalesDia(viajes, feePct = 0, driverName = "") {
   const box = document.getElementById("totales-dia");
   if (!box) return;
 
-<<<<<<< Updated upstream
-  // ⬇️ Si no hay viajes, oculto el resumen
-=======
->>>>>>> Stashed changes
   if (!viajes || viajes.length === 0) {
     box.innerHTML = "";
     box.classList.remove("sd-card", "p-3");
     return;
   }
 
-<<<<<<< Updated upstream
-  const {
-    totalCobrar, totalAyudantes, totalBrutoChofer, cantAyudantes, helperUnit
-  } = computeDiaTotals(viajes);
-
-  const ayudantesLine = (totalAyudantes > 0)
-    ? `<div class="line mb-2 muted">
-         <span>Total ayudantes</span>
-         <span>$${formatMoney(totalAyudantes)} ${helperUnit ? `(${formatMoney(helperUnit)} c/u)` : ""}</span>
-       </div>`
-    : "";
-
-  const expr = (totalAyudantes > 0)
-    ? `$${formatMoney(totalCobrar)} - $${formatMoney(totalAyudantes)}`
-    : "";
-=======
   const { totalBrutoChofer } = computeDiaTotals(viajes);
   const cobrado = totalBrutoChofer;
 
   const pct = Number(feePct) || 0;
   const montoComision = Math.round(cobrado * pct / 100);
->>>>>>> Stashed changes
 
   box.classList.add("sd-card", "p-3");
   box.innerHTML = `
@@ -258,12 +237,6 @@ function renderTotalesDia(viajes, feePct = 0, driverName = "") {
   `;
 }
 
-<<<<<<< Updated upstream
-
-
-
-=======
->>>>>>> Stashed changes
 // prefijos de país para WhatsApp
 const DIAL_BY_ISO = { AR: "54", UY: "598", CL: "56", PY: "595" };
 
@@ -425,44 +398,6 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
     const descargaTxt = `${c.direccionDescarga || ""}, ${c.localidadDescarga || ""}`;
 
     const adminBtnHtml = isAdmin ? `
-<<<<<<< Updated upstream
-      <button data-visible-for="admin"
-              class="btn btn-light btn-icon ms-2 btn-delete-trip btn-trash"
-              data-admin-action
-              title="Eliminar"
-              data-doc-id="${viaje.__id}"
-              data-dni="${CURRENT_DNI}"
-              data-cliente="${esc(c.nombre || "")}"
-              data-horario="${esc(c.horario || "")}"
-              data-carga="${esc(cargaTxt)}"
-              data-descarga="${esc(descargaTxt)}">
-        <i class="bi bi-trash3"></i>
-      </button>
-    ` : ``;
-
-    const card = document.createElement("div");
-    card.className = "viaje mb-4 p-0 shadow-sm";
-
-    const cantAy = Number(ayud.cantidad) || 0;
-    const precioAy = Number(ayud.precio) || 0;
-    const totalAy = cantAy * precioAy;
-    const showHelpers = cantAy > 0 && precioAy > 0;
-
-    const helpersBody = showHelpers ? `
-  <small class="mb-0">Ayudantes:</small>
-  <div class="mb-1"><b>${cantAy} | $${formatMoney(precioAy)}</b></div>
-` : "";
-
-    const totalCobrarViaje = bruto + (showHelpers ? totalAy : 0);
-
-
-    const helpersFooter = showHelpers ? `
-  <div class="ayudantes-info text-end mt-1">
-    <small class="text-white-50">Total a ayudantes:</small>
-    <span class="ms-2 fw-semibold">${cantAy} × $${formatMoney(precioAy)} = $${formatMoney(totalAy)}</span>
-  </div>
-` : "";
-=======
       <div class="d-flex align-items-center" data-visible-for="admin" data-admin-action>
         <button class="btn btn-light btn-icon ms-2 btn-edit-trip" title="Editar"
           data-doc-id="${viaje.__id}" data-dni="${CURRENT_DNI}">
@@ -484,7 +419,6 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
 
     const card = document.createElement("div");
     card.className = "viaje mb-4 p-0 shadow-sm";
->>>>>>> Stashed changes
     card.innerHTML = `
       <div class="d-flex align-items-stretch">
         <div class="barra-lateral" style="background:${color};">
@@ -529,33 +463,6 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
           </div>
 
           <div class="precio-badge">
-<<<<<<< Updated upstream
-          
-          ${showHelpers ? `
-            <div class="text-white-50 small mt-1 d-flex justify-content-between align-items-center gap-2">
-              Total a ayudantes: <b class="text-white">$${formatMoney(totalAy)}</b>
-            </div>
-            <div class="text-white-50 small mt-1 d-flex justify-content-between align-items-center gap-2">
-            Total a rendir: <b class="text-white">$${formatMoney(bruto)}</b>
-            </div>
-            <div class="d-flex justify-content-between align-items-center gap-2">
-              <small class="mb-0 text-white fw-semibold">Total a cobrar: </small>
-              <h3 class="mb-0 text-white">$${formatMoney(totalCobrarViaje)}</h3>
-            </div>
-          ` : `
-          <div class="d-flex justify-content-between align-items-center gap-2">
-              <small class="mb-0 text-white mr-5">Total a cobrar: </small>
-              <h3 class="mb-0 text-white"> $${formatMoney(totalCobrarViaje)}</h3>
-            </div>
-          `}
-
-          
-
-        </div>
-
-        </div>
-
-=======
             ${showHelpers ? `
               <div class="text-white-50 small mt-1 d-flex justify-content-between align-items-center gap-2">
                 Precio flete: <b class="text-white">$${formatMoney(bruto)}</b>
@@ -574,7 +481,6 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
               </div>
             `}
           </div>
->>>>>>> Stashed changes
         </div>
       </div>
     `;
