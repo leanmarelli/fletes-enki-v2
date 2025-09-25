@@ -14,7 +14,41 @@ const RETURN_TO = qs.get("return") || "";
 
 let modalExito, modalError;
 
-/* ----------------------- helpers de fecha ----------------------- */
+// ------------------- control de navegación segura -------------------
+let isDirty = false;
+let allowNav = false;
+
+function beforeUnloadHandler(e) {
+    if (isDirty && !allowNav) {
+        e.preventDefault();
+        e.returnValue = ""; // necesario para mostrar el diálogo
+    }
+}
+window.addEventListener("beforeunload", beforeUnloadHandler);
+
+function markDirty() { isDirty = true; }
+function allowSafeNavigation() {
+    allowNav = true;
+    isDirty = false;
+    window.removeEventListener("beforeunload", beforeUnloadHandler);
+}
+
+function setAgendaHref(linkEl, { dni, date, fallbackPath = "schedule.html" }) {
+    // Usa RETURN_TO si existe; si no, arma schedule.html
+    const baseUrl = RETURN_TO ? new URL(RETURN_TO, location.origin)
+        : new URL(fallbackPath, location.origin);
+
+    // Asegurar/actualizar parámetros requeridos
+    if (dni) baseUrl.searchParams.set("dni", dni);
+    if (date) baseUrl.searchParams.set("date", date);
+
+    // Escribir el href relativo (más prolijo)
+    const rel = baseUrl.pathname + "?" + baseUrl.searchParams.toString();
+    linkEl.href = rel;
+}
+
+
+// ----------------------- helpers de fecha -----------------------
 function ymdOf(d) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -27,13 +61,11 @@ function mondayOf(ymdStr) {
     return ymdOf(d);
 }
 
-
 function setFormEnabled(enabled) {
-    // Deshabilita inputs/selects/textarea y el botón de submit. Deja el "Cancelar" libre.
-    document.querySelectorAll('#new-trip-form input, #new-trip-form select, #new-trip-form textarea, #new-trip-form button[type="submit"]')
+    document
+        .querySelectorAll('#new-trip-form input, #new-trip-form select, #new-trip-form textarea, #new-trip-form button[type="submit"]')
         .forEach(el => el.disabled = !enabled);
 }
-
 
 /* -------------------- hidratar select fletero ------------------- */
 async function hydrateSelectFleteroForForm() {
@@ -46,29 +78,25 @@ async function hydrateSelectFleteroForForm() {
             .map(d => ({ dni: d.id, ...(d.data() || {}) }))
             .sort((a, b) => (a.name || a.dni).localeCompare(b.name || b.dni, "es"));
 
-        // 1) Opciones nativas (para validación del navegador)
         const dniQ = new URLSearchParams(location.search).get("dni") || "";
         select.innerHTML = `<option value="">Elegir persona</option>`;
         for (const x of data) {
             const op = document.createElement("option");
             op.value = x.dni;
             op.textContent = x.car ? `${x.name} (${x.car})` : (x.name || x.dni);
-            if (dniQ && x.dni === dniQ) op.selected = true; // preselect si vino por query
+            if (dniQ && x.dni === dniQ) op.selected = true;
             select.appendChild(op);
         }
 
-        // 2) Mejora visual: mantiene el <select> sincronizado
         enhanceColorSelect(select, data, {
             placeholder: "Elegir persona",
-            preselect: select.value || "", // lo que haya quedado arriba
+            preselect: select.value || "",
             onChange: (dni) => {
-                // sincronia con el control nativo (esto hace que "required" pase)
                 select.value = dni || "";
-                // marcá selected en la opción correspondiente por las dudas
                 select.querySelectorAll("option").forEach(o => o.selected = (o.value === dni));
-                // notificar a quien escuche
                 select.dispatchEvent(new Event("change", { bubbles: true }));
-                select.setCustomValidity(""); // limpia mensaje de validación si lo hubo
+                select.setCustomValidity("");
+                markDirty();
             }
         });
 
@@ -81,7 +109,6 @@ function setVal(sel, val) {
     const el = document.querySelector(sel);
     if (el) el.value = val ?? "";
 }
-
 function setRadioByValue(name, value) {
     document.querySelectorAll(`input[name="${name}"]`)
         .forEach(r => r.checked = (r.value === (value || "")));
@@ -91,7 +118,6 @@ function setRadioByValue(name, value) {
 async function loadEditIfNeeded() {
     if (MODE !== "edit" || !EDIT_DNI || !EDIT_ID) return;
 
-    // UI: título y botón
     const title = document.querySelector("#formTitle");
     if (title) title.textContent = "Editar viaje";
     const submitBtn = document.querySelector('#new-trip-form button[type="submit"]');
@@ -102,7 +128,6 @@ async function loadEditIfNeeded() {
     `;
     }
 
-    // Bloquear cambio de fletero en edición (no movemos el doc de colección)
     const selFletero = document.getElementById("fletero");
     if (selFletero) {
         selFletero.value = EDIT_DNI;
@@ -110,10 +135,8 @@ async function loadEditIfNeeded() {
         selFletero.disabled = true;
     }
 
-    // Bloqueo total del form mientras carga
     setFormEnabled(false);
 
-    // Traer doc y setear campos
     const ref = doc(db, "viajes", EDIT_DNI, "items", EDIT_ID);
     try {
         const snap = await getDoc(ref);
@@ -148,11 +171,9 @@ async function loadEditIfNeeded() {
     // Botón Cancelar → volver a la pantalla de origen (si vino en la URL)
     if (RETURN_TO) {
         const cancelBtn = document.querySelector('.form-actions-sticky .btn.btn-outline-danger');
-        if (cancelBtn) cancelBtn.onclick = () => { location.href = RETURN_TO; };
+        if (cancelBtn) cancelBtn.onclick = () => { allowSafeNavigation(); location.href = RETURN_TO; };
     }
 }
-
-
 
 /* ------------------------- modales ------------------------------ */
 function bootModals() {
@@ -171,6 +192,7 @@ function bootModals() {
         link.addEventListener("click", (e) => {
             e.preventDefault();
             const href = link.getAttribute("href");
+            allowSafeNavigation();     // <- desactiva el warning
             modalExito?.hide();
             setTimeout(() => { location.href = href; }, 150);
         });
@@ -182,10 +204,10 @@ function bootModals() {
     const run = async () => {
         const isEdit = MODE === "edit";
         try {
-            if (isEdit) showLoading(true);   // overlay #appLoading mientras trae el doc
+            if (isEdit) showLoading(true);
             bootModals();
             await hydrateSelectFleteroForForm();
-            await loadEditIfNeeded();        // precarga edición si corresponde
+            await loadEditIfNeeded();
         } finally {
             if (isEdit) showLoading(false);
         }
@@ -198,10 +220,11 @@ function bootModals() {
     }
 })();
 
-
-/* --------------------------- submit ----------------------------- */
 /* --------------------------- submit ----------------------------- */
 const form = document.getElementById("new-trip-form");
+
+// marcar el form como sucio ante cambios
+form?.addEventListener("input", markDirty);
 
 form.addEventListener("submit", async (e) => {
     // Validación de fletero (en create). En edit está deshabilitado, pero con value cargado.
@@ -260,7 +283,6 @@ form.addEventListener("submit", async (e) => {
         viaje.y = Y;
         viaje.m = M;
         viaje.ym = `${Y}-${String(M).padStart(2, "0")}`;
-        // lunes de la semana
         (function mondayOfInto(v) {
             const [y, m, d] = fechaYMD.split("-").map(Number);
             const dt = new Date(y, m - 1, d);
@@ -271,7 +293,6 @@ form.addEventListener("submit", async (e) => {
             v.weekStart = `${y2}-${m2}-${d2}`;
         })(viaje);
         viaje.importe = Number(document.getElementById("precioServicio").value) || 0;
-        // timestamp exacto
         {
             const [y, m, d] = fechaYMD.split("-").map(Number);
             const [h, mm] = (document.getElementById("hora").value || "00:00").split(":").map(Number);
@@ -288,13 +309,15 @@ form.addEventListener("submit", async (e) => {
             const ref = doc(db, "viajes", EDIT_DNI, "items", EDIT_ID);
             await updateDoc(ref, viaje);
 
+            // ya guardó: este ciclo deja de estar "sucio"
+            isDirty = false;
+
             const modalTitle = document.querySelector("#modalSaveSuccess .modal-title");
             if (modalTitle) modalTitle.textContent = "Viaje actualizado";
 
             const link = document.getElementById("linkVerAgenda");
             if (link) {
-                const backUrl = RETURN_TO || `schedule.html?dni=${encodeURIComponent(EDIT_DNI)}&date=${encodeURIComponent(viaje.fecha)}`;
-                link.href = backUrl;
+                setAgendaHref(link, { dni: EDIT_DNI, date: viaje.fecha });
             }
 
             modalExito?.show();
@@ -305,8 +328,14 @@ form.addEventListener("submit", async (e) => {
             viaje.createdAt = new Date().toISOString();
             await addDoc(ref, viaje);
 
+            // ya guardó: este ciclo deja de estar "sucio"
+            isDirty = false;
+
             const link = document.getElementById("linkVerAgenda");
-            if (link) link.href = `schedule.html?dni=${encodeURIComponent(fletero)}&date=${encodeURIComponent(viaje.fecha)}`;
+            if (link) {
+                const fletero = document.getElementById("fletero").value;
+                setAgendaHref(link, { dni: fletero, date: viaje.fecha });
+            }
 
             modalExito?.show();
             form.reset();
@@ -323,10 +352,3 @@ form.addEventListener("submit", async (e) => {
         showLoading(false);
     }
 });
-
-let isDirty = false;
-document.getElementById("new-trip-form").addEventListener("input", () => { isDirty = true; });
-window.addEventListener("beforeunload", (e) => {
-    if (isDirty) { e.preventDefault(); e.returnValue = ""; }
-});
-// En el submit exitoso o al cancelar con RETURN_TO, poné isDirty = false;
