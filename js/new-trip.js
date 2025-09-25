@@ -3,7 +3,7 @@
 // - Hidrata el <select id="fletero"> en esta página (sin redirigir)
 // - Guarda campos denormalizados: fecha, y, m, ym, weekStart, importe
 // - Muestra modal de éxito con link a la agenda del fletero
-import { db, collection, getDocs, addDoc, showLoading, doc, getDoc, updateDoc } from "./utils.js";
+import { db, collection, getDocs, addDoc, showLoading, doc, getDoc, updateDoc, deleteDoc } from "./utils.js";
 import { enhanceColorSelect } from "./color-select.js";
 
 const qs = new URLSearchParams(location.search);
@@ -17,36 +17,30 @@ let modalExito, modalError;
 // ------------------- control de navegación segura -------------------
 let isDirty = false;
 let allowNav = false;
+let HYDRATING = true;            // evita marcar dirty mientras precargamos
+let ORIGINAL_FORM_STATE = null;  // snapshot para comparar cambios reales
 
 function beforeUnloadHandler(e) {
-    if (isDirty && !allowNav) {
-        e.preventDefault();
-        e.returnValue = ""; // necesario para mostrar el diálogo
-    }
+    if (isDirty && !allowNav) { e.preventDefault(); e.returnValue = ""; }
 }
 window.addEventListener("beforeunload", beforeUnloadHandler);
 
-function markDirty() { isDirty = true; }
+function markDirty() { if (!HYDRATING) isDirty = true; }
 function allowSafeNavigation() {
-    allowNav = true;
-    isDirty = false;
+    allowNav = true; isDirty = false;
     window.removeEventListener("beforeunload", beforeUnloadHandler);
 }
 
+document.getElementById("new-trip-form")?.addEventListener("input", markDirty);
+
+// ----------------------- armar href para agenda -----------------------
 function setAgendaHref(linkEl, { dni, date, fallbackPath = "schedule.html" }) {
-    // Usa RETURN_TO si existe; si no, arma schedule.html
     const baseUrl = RETURN_TO ? new URL(RETURN_TO, location.origin)
         : new URL(fallbackPath, location.origin);
-
-    // Asegurar/actualizar parámetros requeridos
     if (dni) baseUrl.searchParams.set("dni", dni);
     if (date) baseUrl.searchParams.set("date", date);
-
-    // Escribir el href relativo (más prolijo)
-    const rel = baseUrl.pathname + "?" + baseUrl.searchParams.toString();
-    linkEl.href = rel;
+    linkEl.href = baseUrl.pathname + "?" + baseUrl.searchParams.toString();
 }
-
 
 // ----------------------- helpers de fecha -----------------------
 function ymdOf(d) {
@@ -96,7 +90,7 @@ async function hydrateSelectFleteroForForm() {
                 select.querySelectorAll("option").forEach(o => o.selected = (o.value === dni));
                 select.dispatchEvent(new Event("change", { bubbles: true }));
                 select.setCustomValidity("");
-                markDirty();
+                if (!HYDRATING) isDirty = true; // sólo cuenta cuando lo cambia el usuario
             }
         });
 
@@ -113,6 +107,35 @@ function setRadioByValue(name, value) {
     document.querySelectorAll(`input[name="${name}"]`)
         .forEach(r => r.checked = (r.value === (value || "")));
 }
+
+// -------------------- helpers de snapshot de form -------------------
+function val(id) { return (document.getElementById(id)?.value ?? "").trim(); }
+function checkedVal(name) { return document.querySelector(`input[name="${name}"]:checked`)?.value || ""; }
+
+function getFormState() {
+    return {
+        fletero: document.getElementById("fletero")?.value || "",
+        cliente: {
+            nombre: val("cliente"),
+            telefono: val("telefono"),
+            tipoServicio: checkedVal("tipoServicio"),
+            fecha: val("fecha"),
+            horario: val("hora"),
+            direccionCarga: val("dirCarga"),
+            localidadCarga: val("locCarga"),
+            detalle: val("detalle"),
+            direccionDescarga: val("dirDescarga"),
+            localidadDescarga: val("locDescarga"),
+            peajes: checkedVal("peajes"),
+            precioServicio: String(parseInt(val("precioServicio") || "0", 10))
+        },
+        ayudantes: {
+            cantidad: String(parseInt(val("cantAyudantes") || "0", 10)),
+            precio: String(parseInt(val("precioAyudante") || "0", 10))
+        }
+    };
+}
+function shallowEqual(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
 
 // Carga el doc de Firestore y prellena el form
 async function loadEditIfNeeded() {
@@ -132,7 +155,7 @@ async function loadEditIfNeeded() {
     if (selFletero) {
         selFletero.value = EDIT_DNI;
         selFletero.querySelectorAll("option").forEach(o => o.selected = (o.value === EDIT_DNI));
-        selFletero.disabled = true;
+        // queda habilitado para poder reasignar
     }
 
     setFormEnabled(false);
@@ -160,12 +183,18 @@ async function loadEditIfNeeded() {
         setVal("#precioServicio", c.precioServicio ?? "");
         setVal("#cantAyudantes", a.cantidad ?? "");
         setVal("#precioAyudante", a.precio ?? "");
+
+        // snapshot original para comparar
+        ORIGINAL_FORM_STATE = getFormState();
+        isDirty = false;
+
     } catch (err) {
         console.error(err);
         alert(err?.message || "No se pudo cargar el viaje a editar.");
     } finally {
         if (submitBtn) submitBtn.textContent = "Actualizar viaje";
         setFormEnabled(true);
+        HYDRATING = false; // a partir de acá, los cambios del usuario cuentan
     }
 
     // Botón Cancelar → volver a la pantalla de origen (si vino en la URL)
@@ -209,6 +238,7 @@ function bootModals() {
             await hydrateSelectFleteroForForm();
             await loadEditIfNeeded();
         } finally {
+            if (!isEdit) HYDRATING = false; // en create, cerramos hidratación acá
             if (isEdit) showLoading(false);
         }
     };
@@ -305,22 +335,50 @@ form.addEventListener("submit", async (e) => {
         if (subt) subt.textContent = parts.join(" · ");
 
         if (MODE === "edit" && EDIT_DNI && EDIT_ID) {
-            // EDITAR
-            const ref = doc(db, "viajes", EDIT_DNI, "items", EDIT_ID);
-            await updateDoc(ref, viaje);
-
-            // ya guardó: este ciclo deja de estar "sucio"
-            isDirty = false;
-
-            const modalTitle = document.querySelector("#modalSaveSuccess .modal-title");
-            if (modalTitle) modalTitle.textContent = "Viaje actualizado";
-
-            const link = document.getElementById("linkVerAgenda");
-            if (link) {
-                setAgendaHref(link, { dni: EDIT_DNI, date: viaje.fecha });
+            // Comparación real con snapshot: ¿hay cambios?
+            const currentState = getFormState();
+            if (ORIGINAL_FORM_STATE && shallowEqual(currentState, ORIGINAL_FORM_STATE)) {
+                const err = document.getElementById("errorDetails");
+                if (err) err.textContent = "No hay cambios por guardar.";
+                modalError?.show();
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = prevHtml;
+                showLoading(false);
+                return;
             }
 
-            modalExito?.show();
+            // Fletero destino (puede ser distinto al original)
+            const fleteroDest = document.getElementById("fletero")?.value || EDIT_DNI;
+
+            if (fleteroDest !== EDIT_DNI) {
+                // --- REASIGNAR: crear en nueva colección y borrar el viejo ---
+                const newColl = collection(db, "viajes", fleteroDest, "items");
+                await addDoc(newColl, viaje); // nuevo ID
+                await deleteDoc(doc(db, "viajes", EDIT_DNI, "items", EDIT_ID));
+
+                isDirty = false;
+                const modalTitle = document.querySelector("#modalSaveSuccess .modal-title");
+                if (modalTitle) modalTitle.textContent = "Viaje reasignado";
+
+                const link = document.getElementById("linkVerAgenda");
+                if (link) setAgendaHref(link, { dni: fleteroDest, date: viaje.fecha });
+
+                modalExito?.show();
+
+            } else {
+                // --- ACTUALIZAR en el mismo fletero ---
+                const ref = doc(db, "viajes", EDIT_DNI, "items", EDIT_ID);
+                await updateDoc(ref, viaje);
+
+                isDirty = false;
+                const modalTitle = document.querySelector("#modalSaveSuccess .modal-title");
+                if (modalTitle) modalTitle.textContent = "Viaje actualizado";
+
+                const link = document.getElementById("linkVerAgenda");
+                if (link) setAgendaHref(link, { dni: EDIT_DNI, date: viaje.fecha });
+
+                modalExito?.show();
+            }
         } else {
             // CREAR
             const fletero = document.getElementById("fletero").value;
@@ -328,14 +386,10 @@ form.addEventListener("submit", async (e) => {
             viaje.createdAt = new Date().toISOString();
             await addDoc(ref, viaje);
 
-            // ya guardó: este ciclo deja de estar "sucio"
             isDirty = false;
 
             const link = document.getElementById("linkVerAgenda");
-            if (link) {
-                const fletero = document.getElementById("fletero").value;
-                setAgendaHref(link, { dni: fletero, date: viaje.fecha });
-            }
+            if (link) setAgendaHref(link, { dni: fletero, date: viaje.fecha });
 
             modalExito?.show();
             form.reset();
