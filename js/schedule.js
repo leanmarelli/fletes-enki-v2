@@ -221,21 +221,20 @@ function renderTotalesDia(viajes, feePct = 0, driverName = "") {
     </div>
 
     <div class="line mb-2">
-      <span>Total a cobrar</span>
-      <span class="fw-semibold">$${formatMoney(totalCobrar)}</span>
+      <span>Cobrado</span>
+      <span class="fw-semibold">$${formatMoney(cobrado)}</span>
     </div>
 
-    ${ayudantesLine}
-
-    <hr class="my-2">
-    ${expr ? `<div class="text-end small muted">${expr}</div>` : ``}
-    <div class="line mb-1">
-      <span class="fw-semibold">Total a rendir</span>
-      <span class="display-total">$${formatMoney(totalBrutoChofer)}</span>
-    </div>
-    
+    ${pct > 0 ? `
+      <hr class="my-2">
+      <div class="line mb-1">
+        <span class="fw-semibold">Comisión (${pct}%)</span>
+        <span class="display-total">$${formatMoney(montoComision)}</span>
+      </div>
+    ` : ``}
   `;
 }
+
 
 // prefijos de país para WhatsApp
 const DIAL_BY_ISO = { AR: "54", UY: "598", CL: "56", PY: "595" };
