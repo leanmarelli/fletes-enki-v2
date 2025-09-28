@@ -3,7 +3,7 @@
 // - Hidrata el <select id="fletero"> en esta página (sin redirigir)
 // - Guarda campos denormalizados: fecha, y, m, ym, weekStart, importe
 // - Muestra modal de éxito con link a la agenda del fletero
-import { db, collection, getDocs, addDoc, showLoading, doc, getDoc, updateDoc } from "./utils.js";
+import { db, collection, getDocs, addDoc, showLoading, doc, getDoc, updateDoc, deleteDoc } from "./utils.js";
 import { enhanceColorSelect } from "./color-select.js";
 
 const qs = new URLSearchParams(location.search);
@@ -14,7 +14,35 @@ const RETURN_TO = qs.get("return") || "";
 
 let modalExito, modalError;
 
-/* ----------------------- helpers de fecha ----------------------- */
+// ------------------- control de navegación segura -------------------
+let isDirty = false;
+let allowNav = false;
+let HYDRATING = true;            // evita marcar dirty mientras precargamos
+let ORIGINAL_FORM_STATE = null;  // snapshot para comparar cambios reales
+
+function beforeUnloadHandler(e) {
+    if (isDirty && !allowNav) { e.preventDefault(); e.returnValue = ""; }
+}
+window.addEventListener("beforeunload", beforeUnloadHandler);
+
+function markDirty() { if (!HYDRATING) isDirty = true; }
+function allowSafeNavigation() {
+    allowNav = true; isDirty = false;
+    window.removeEventListener("beforeunload", beforeUnloadHandler);
+}
+
+document.getElementById("new-trip-form")?.addEventListener("input", markDirty);
+
+// ----------------------- armar href para agenda -----------------------
+function setAgendaHref(linkEl, { dni, date, fallbackPath = "schedule.html" }) {
+    const baseUrl = RETURN_TO ? new URL(RETURN_TO, location.origin)
+        : new URL(fallbackPath, location.origin);
+    if (dni) baseUrl.searchParams.set("dni", dni);
+    if (date) baseUrl.searchParams.set("date", date);
+    linkEl.href = baseUrl.pathname + "?" + baseUrl.searchParams.toString();
+}
+
+// ----------------------- helpers de fecha -----------------------
 function ymdOf(d) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -27,13 +55,11 @@ function mondayOf(ymdStr) {
     return ymdOf(d);
 }
 
-
 function setFormEnabled(enabled) {
-    // Deshabilita inputs/selects/textarea y el botón de submit. Deja el "Cancelar" libre.
-    document.querySelectorAll('#new-trip-form input, #new-trip-form select, #new-trip-form textarea, #new-trip-form button[type="submit"]')
+    document
+        .querySelectorAll('#new-trip-form input, #new-trip-form select, #new-trip-form textarea, #new-trip-form button[type="submit"]')
         .forEach(el => el.disabled = !enabled);
 }
-
 
 /* -------------------- hidratar select fletero ------------------- */
 async function hydrateSelectFleteroForForm() {
@@ -46,29 +72,25 @@ async function hydrateSelectFleteroForForm() {
             .map(d => ({ dni: d.id, ...(d.data() || {}) }))
             .sort((a, b) => (a.name || a.dni).localeCompare(b.name || b.dni, "es"));
 
-        // 1) Opciones nativas (para validación del navegador)
         const dniQ = new URLSearchParams(location.search).get("dni") || "";
         select.innerHTML = `<option value="">Elegir persona</option>`;
         for (const x of data) {
             const op = document.createElement("option");
             op.value = x.dni;
             op.textContent = x.car ? `${x.name} (${x.car})` : (x.name || x.dni);
-            if (dniQ && x.dni === dniQ) op.selected = true; // preselect si vino por query
+            if (dniQ && x.dni === dniQ) op.selected = true;
             select.appendChild(op);
         }
 
-        // 2) Mejora visual: mantiene el <select> sincronizado
         enhanceColorSelect(select, data, {
             placeholder: "Elegir persona",
-            preselect: select.value || "", // lo que haya quedado arriba
+            preselect: select.value || "",
             onChange: (dni) => {
-                // sincronia con el control nativo (esto hace que "required" pase)
                 select.value = dni || "";
-                // marcá selected en la opción correspondiente por las dudas
                 select.querySelectorAll("option").forEach(o => o.selected = (o.value === dni));
-                // notificar a quien escuche
                 select.dispatchEvent(new Event("change", { bubbles: true }));
-                select.setCustomValidity(""); // limpia mensaje de validación si lo hubo
+                select.setCustomValidity("");
+                if (!HYDRATING) isDirty = true; // sólo cuenta cuando lo cambia el usuario
             }
         });
 
@@ -81,17 +103,44 @@ function setVal(sel, val) {
     const el = document.querySelector(sel);
     if (el) el.value = val ?? "";
 }
-
 function setRadioByValue(name, value) {
     document.querySelectorAll(`input[name="${name}"]`)
         .forEach(r => r.checked = (r.value === (value || "")));
 }
 
+// -------------------- helpers de snapshot de form -------------------
+function val(id) { return (document.getElementById(id)?.value ?? "").trim(); }
+function checkedVal(name) { return document.querySelector(`input[name="${name}"]:checked`)?.value || ""; }
+
+function getFormState() {
+    return {
+        fletero: document.getElementById("fletero")?.value || "",
+        cliente: {
+            nombre: val("cliente"),
+            telefono: val("telefono"),
+            tipoServicio: checkedVal("tipoServicio"),
+            fecha: val("fecha"),
+            horario: val("hora"),
+            direccionCarga: val("dirCarga"),
+            localidadCarga: val("locCarga"),
+            detalle: val("detalle"),
+            direccionDescarga: val("dirDescarga"),
+            localidadDescarga: val("locDescarga"),
+            peajes: checkedVal("peajes"),
+            precioServicio: String(parseInt(val("precioServicio") || "0", 10))
+        },
+        ayudantes: {
+            cantidad: String(parseInt(val("cantAyudantes") || "0", 10)),
+            precio: String(parseInt(val("precioAyudante") || "0", 10))
+        }
+    };
+}
+function shallowEqual(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+
 // Carga el doc de Firestore y prellena el form
 async function loadEditIfNeeded() {
     if (MODE !== "edit" || !EDIT_DNI || !EDIT_ID) return;
 
-    // UI: título y botón
     const title = document.querySelector("#formTitle");
     if (title) title.textContent = "Editar viaje";
     const submitBtn = document.querySelector('#new-trip-form button[type="submit"]');
@@ -102,18 +151,15 @@ async function loadEditIfNeeded() {
     `;
     }
 
-    // Bloquear cambio de fletero en edición (no movemos el doc de colección)
     const selFletero = document.getElementById("fletero");
     if (selFletero) {
         selFletero.value = EDIT_DNI;
         selFletero.querySelectorAll("option").forEach(o => o.selected = (o.value === EDIT_DNI));
-        selFletero.disabled = true;
+        // queda habilitado para poder reasignar
     }
 
-    // Bloqueo total del form mientras carga
     setFormEnabled(false);
 
-    // Traer doc y setear campos
     const ref = doc(db, "viajes", EDIT_DNI, "items", EDIT_ID);
     try {
         const snap = await getDoc(ref);
@@ -137,22 +183,26 @@ async function loadEditIfNeeded() {
         setVal("#precioServicio", c.precioServicio ?? "");
         setVal("#cantAyudantes", a.cantidad ?? "");
         setVal("#precioAyudante", a.precio ?? "");
+
+        // snapshot original para comparar
+        ORIGINAL_FORM_STATE = getFormState();
+        isDirty = false;
+
     } catch (err) {
         console.error(err);
         alert(err?.message || "No se pudo cargar el viaje a editar.");
     } finally {
         if (submitBtn) submitBtn.textContent = "Actualizar viaje";
         setFormEnabled(true);
+        HYDRATING = false; // a partir de acá, los cambios del usuario cuentan
     }
 
     // Botón Cancelar → volver a la pantalla de origen (si vino en la URL)
     if (RETURN_TO) {
         const cancelBtn = document.querySelector('.form-actions-sticky .btn.btn-outline-danger');
-        if (cancelBtn) cancelBtn.onclick = () => { location.href = RETURN_TO; };
+        if (cancelBtn) cancelBtn.onclick = () => { allowSafeNavigation(); location.href = RETURN_TO; };
     }
 }
-
-
 
 /* ------------------------- modales ------------------------------ */
 function bootModals() {
@@ -171,6 +221,7 @@ function bootModals() {
         link.addEventListener("click", (e) => {
             e.preventDefault();
             const href = link.getAttribute("href");
+            allowSafeNavigation();     // <- desactiva el warning
             modalExito?.hide();
             setTimeout(() => { location.href = href; }, 150);
         });
@@ -182,11 +233,12 @@ function bootModals() {
     const run = async () => {
         const isEdit = MODE === "edit";
         try {
-            if (isEdit) showLoading(true);   // overlay #appLoading mientras trae el doc
+            if (isEdit) showLoading(true);
             bootModals();
             await hydrateSelectFleteroForForm();
-            await loadEditIfNeeded();        // precarga edición si corresponde
+            await loadEditIfNeeded();
         } finally {
+            if (!isEdit) HYDRATING = false; // en create, cerramos hidratación acá
             if (isEdit) showLoading(false);
         }
     };
@@ -198,10 +250,11 @@ function bootModals() {
     }
 })();
 
-
-/* --------------------------- submit ----------------------------- */
 /* --------------------------- submit ----------------------------- */
 const form = document.getElementById("new-trip-form");
+
+// marcar el form como sucio ante cambios
+form?.addEventListener("input", markDirty);
 
 form.addEventListener("submit", async (e) => {
     // Validación de fletero (en create). En edit está deshabilitado, pero con value cargado.
@@ -260,7 +313,6 @@ form.addEventListener("submit", async (e) => {
         viaje.y = Y;
         viaje.m = M;
         viaje.ym = `${Y}-${String(M).padStart(2, "0")}`;
-        // lunes de la semana
         (function mondayOfInto(v) {
             const [y, m, d] = fechaYMD.split("-").map(Number);
             const dt = new Date(y, m - 1, d);
@@ -271,7 +323,6 @@ form.addEventListener("submit", async (e) => {
             v.weekStart = `${y2}-${m2}-${d2}`;
         })(viaje);
         viaje.importe = Number(document.getElementById("precioServicio").value) || 0;
-        // timestamp exacto
         {
             const [y, m, d] = fechaYMD.split("-").map(Number);
             const [h, mm] = (document.getElementById("hora").value || "00:00").split(":").map(Number);
@@ -284,20 +335,50 @@ form.addEventListener("submit", async (e) => {
         if (subt) subt.textContent = parts.join(" · ");
 
         if (MODE === "edit" && EDIT_DNI && EDIT_ID) {
-            // EDITAR
-            const ref = doc(db, "viajes", EDIT_DNI, "items", EDIT_ID);
-            await updateDoc(ref, viaje);
-
-            const modalTitle = document.querySelector("#modalSaveSuccess .modal-title");
-            if (modalTitle) modalTitle.textContent = "Viaje actualizado";
-
-            const link = document.getElementById("linkVerAgenda");
-            if (link) {
-                const backUrl = RETURN_TO || `schedule.html?dni=${encodeURIComponent(EDIT_DNI)}&date=${encodeURIComponent(viaje.fecha)}`;
-                link.href = backUrl;
+            // Comparación real con snapshot: ¿hay cambios?
+            const currentState = getFormState();
+            if (ORIGINAL_FORM_STATE && shallowEqual(currentState, ORIGINAL_FORM_STATE)) {
+                const err = document.getElementById("errorDetails");
+                if (err) err.textContent = "No hay cambios por guardar.";
+                modalError?.show();
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = prevHtml;
+                showLoading(false);
+                return;
             }
 
-            modalExito?.show();
+            // Fletero destino (puede ser distinto al original)
+            const fleteroDest = document.getElementById("fletero")?.value || EDIT_DNI;
+
+            if (fleteroDest !== EDIT_DNI) {
+                // --- REASIGNAR: crear en nueva colección y borrar el viejo ---
+                const newColl = collection(db, "viajes", fleteroDest, "items");
+                await addDoc(newColl, viaje); // nuevo ID
+                await deleteDoc(doc(db, "viajes", EDIT_DNI, "items", EDIT_ID));
+
+                isDirty = false;
+                const modalTitle = document.querySelector("#modalSaveSuccess .modal-title");
+                if (modalTitle) modalTitle.textContent = "Viaje reasignado";
+
+                const link = document.getElementById("linkVerAgenda");
+                if (link) setAgendaHref(link, { dni: fleteroDest, date: viaje.fecha });
+
+                modalExito?.show();
+
+            } else {
+                // --- ACTUALIZAR en el mismo fletero ---
+                const ref = doc(db, "viajes", EDIT_DNI, "items", EDIT_ID);
+                await updateDoc(ref, viaje);
+
+                isDirty = false;
+                const modalTitle = document.querySelector("#modalSaveSuccess .modal-title");
+                if (modalTitle) modalTitle.textContent = "Viaje actualizado";
+
+                const link = document.getElementById("linkVerAgenda");
+                if (link) setAgendaHref(link, { dni: EDIT_DNI, date: viaje.fecha });
+
+                modalExito?.show();
+            }
         } else {
             // CREAR
             const fletero = document.getElementById("fletero").value;
@@ -305,8 +386,10 @@ form.addEventListener("submit", async (e) => {
             viaje.createdAt = new Date().toISOString();
             await addDoc(ref, viaje);
 
+            isDirty = false;
+
             const link = document.getElementById("linkVerAgenda");
-            if (link) link.href = `schedule.html?dni=${encodeURIComponent(fletero)}&date=${encodeURIComponent(viaje.fecha)}`;
+            if (link) setAgendaHref(link, { dni: fletero, date: viaje.fecha });
 
             modalExito?.show();
             form.reset();
@@ -323,10 +406,3 @@ form.addEventListener("submit", async (e) => {
         showLoading(false);
     }
 });
-
-let isDirty = false;
-document.getElementById("new-trip-form").addEventListener("input", () => { isDirty = true; });
-window.addEventListener("beforeunload", (e) => {
-    if (isDirty) { e.preventDefault(); e.returnValue = ""; }
-});
-// En el submit exitoso o al cancelar con RETURN_TO, poné isDirty = false;
