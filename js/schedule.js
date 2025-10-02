@@ -117,6 +117,14 @@ function initModalDatePicker(dni, colorHex = "#135322") {
   const host = document.getElementById("modalCalendarHost");
   if (!host) return;
 
+  // 👉 setear color del fletero en el modal (fallback verde default)
+  const modalRoot = document.getElementById("dateModal");
+  modalRoot?.style.setProperty("--brand", colorHex || "#135322");
+
+  // si querés también en la vista principal del día:
+  const dayView = document.getElementById("dayViewRoot"); // contenedor de tu “Dom 02 de Nov”
+  dayView?.style.setProperty("--brand", colorHex || "#135322");
+
   // 👇 Si ya existe, destruí la instancia vieja (que vino sin header)
   if (FP) {
     try { FP.destroy(); } catch { }
@@ -610,6 +618,27 @@ function getDateFromUrlParam() {
 // Boot
 // ----------------------------------------------------
 document.addEventListener("DOMContentLoaded", () => {
+
+  // helpers que ya tenés en schedule.js
+  const formatDateToYYYYMMDD = d =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+  document.getElementById("btnHoy")?.addEventListener("click", () => {
+    const today = new Date();
+    const todayStr = formatDateToYYYYMMDD(today);
+
+    // si existe flatpickr en el modal, usamos su API
+    if (window.FP) {
+      FP.setDate(today, true);   // true => dispara onChange (ya recarga agenda y cierra modal si corresponde)
+      FP.jumpToDate(today, true);
+    } else {
+      // sin FP, navegá directo en tu vista
+      if (typeof cargarAgenda === "function") cargarAgenda(todayStr);
+      if (typeof updateDateChipLabel === "function") updateDateChipLabel(todayStr);
+    }
+  });
+
+  
   // modal eliminar (si existe en el DOM)
   const modalEl = document.getElementById("modalEliminarViaje");
   if (modalEl && window.bootstrap) modalEliminar = new bootstrap.Modal(modalEl);
@@ -740,4 +769,64 @@ async function prefetchNeighbors(dni, inst) {
     fetchMonthCounts(dni, prev.getFullYear(), prev.getMonth() + 1),
     fetchMonthCounts(dni, next.getFullYear(), next.getMonth() + 1),
   ]);
+}
+
+function isSameDay(a, b) {
+  return a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+}
+
+function jumpToToday() {
+  if (!window.FP) return;
+  const now = new Date();
+  const { minDate, maxDate } = FP.config;
+  let target = now;
+  if (minDate && target < minDate) target = minDate;
+  if (maxDate && target > maxDate) target = maxDate;
+
+  FP.setDate(target, true);    // selecciona hoy (dispara onChange)
+  FP.jumpToDate(target, true); // muestra el mes
+  updateTodayButtonsState();   // refrescar estilo visual
+}
+
+function updateTodayButtonsState() {
+  const btns = [
+    document.getElementById("btnHoy"),
+    document.getElementById("btnModalToday")
+  ].filter(Boolean);
+
+  const sel = (window.FP?.selectedDates?.[0]) || null;
+  const today = new Date();
+
+  const isTodaySelected = !!(sel && isSameDay(sel, today));
+
+  btns.forEach(btn => {
+    btn.classList.remove("chip--brand");
+    btn.classList.add("chip"); // siempre con estilo neutral base
+
+    if (isTodaySelected) {
+      // mostrarlo “activo” solo si la fecha actual del calendario es hoy
+      btn.classList.add("chip--brand");
+    }
+  });
+}
+
+// wirear listeners una sola vez:
+["btnHoy", "btnModalToday"].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.type = "button";
+    el.addEventListener("click", jumpToToday);
+  }
+});
+
+// Hookear a cambios del calendario
+if (window.FP) {
+  // si ya existe:
+  (FP.config.onChange ||= []).push(updateTodayButtonsState);
+  (FP.config.onMonthChange ||= []).push(updateTodayButtonsState);
+  (FP.config.onOpen ||= []).push(updateTodayButtonsState);
+} else {
+  // o dentro de onReady del flatpickr, llamá updateTodayButtonsState(inst)
 }

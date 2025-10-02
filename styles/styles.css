@@ -1920,3 +1920,67 @@ textarea.form-control {
     pointer-events: none;
     /* que no se puedan clickear */
 }
+
+/* Fallback */
+#dateModal {
+    --brand: #135322;
+}
+
+/* Día seleccionado del calendario con color del fletero */
+#dateModal .flatpickr-day.selected,
+#dateModal .flatpickr-day.selected:focus,
+#dateModal .flatpickr-day.startRange,
+#dateModal .flatpickr-day.endRange {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--brand) 30%, transparent);
+}
+
+/* Header “Dom 02 de Nov” (fuera del modal) */
+#dayViewRoot .selected-day-pill {
+    background: color-mix(in srgb, var(--brand) 18%, #ffffff);
+    color: #0B1F26;
+    border: 1px solid color-mix(in srgb, var(--brand) 22%, #E6E8EB);
+}
+
+/* chip base (neutral, como selector de fecha) */
+.chip {
+    height: 36px;
+    border-radius: 999px;
+    padding: 0 14px;
+    border: 1px solid #E0E3E7;
+    background: #fff;
+    color: #0B1F26;
+    font-weight: 600;
+}
+
+/* chip activo (“estamos en hoy”) */
+.chip--brand {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+    box-shadow: 0 1px 8px color-mix(in srgb, var(--brand) 30%, transparent);
+}
+
+/* Aspecto chip neutro (igual al selector de fecha) */
+#btnHoy.day-chip {
+    border-radius: 999px;
+    height: 36px;
+    padding: 0 14px;
+    border: 1px solid #E0E3E7 !important;
+    font-weight: 600;
+    box-shadow: none;
+}
+
+
+#btnHoy.day-chip:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(19, 83, 34, .15) !important;
+    /* tu verde suave */
+}
+
+/* Alineado vertical con el date chip (por si el otro tiene 36px) */
+#btnHoy.day-chip.btn-sm {
+    line-height: 36px;
+}
