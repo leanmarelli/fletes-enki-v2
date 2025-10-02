@@ -65,22 +65,81 @@ async function ensureMonthDecorations(instance, dni) {
   instance.redraw(); // dispara onDayCreate
 }
 
+function attachYearDropdown(fp) {
+  const wrap = fp.calendarContainer?.querySelector(".flatpickr-current-month .numInputWrapper");
+  if (!wrap) return;
+  if (wrap.querySelector("select.fp-yearSelect")) return;
+
+  const input = wrap.querySelector("input.cur-year");
+  if (!input) return;
+
+  // Definí tu rango preferido
+  const currentY = fp.currentYear;
+  const minFromCfg = fp.config.minDate ? fp.config.minDate.getFullYear() : null;
+  const maxFromCfg = fp.config.maxDate ? fp.config.maxDate.getFullYear() : null;
+
+  const MIN_YEAR = Math.max(2020, minFromCfg ?? 2020);
+  const MAX_YEAR = Math.max(currentY, maxFromCfg ?? (currentY + 1)); // incluye el actual como mínimo
+
+  // Ocultar input nativo
+  input.style.display = "none";
+  input.setAttribute("aria-hidden", "true");
+  input.tabIndex = -1;
+
+  // Crear <select> descendente
+  const sel = document.createElement("select");
+  sel.className = "fp-yearSelect";
+
+  for (let y = MAX_YEAR; y >= MIN_YEAR; y--) {
+    const opt = document.createElement("option");
+    opt.value = String(y);
+    opt.textContent = String(y);
+    if (y === currentY) opt.selected = true;
+    sel.appendChild(opt);
+  }
+
+  sel.addEventListener("change", () => {
+    const y = parseInt(sel.value, 10);
+    if (!Number.isNaN(y)) fp.changeYear(y);
+  });
+
+  wrap.appendChild(sel);
+
+  // Mantener sincronizado al cambiar mes/año con flechas
+  const sync = () => { sel.value = String(fp.currentYear); };
+  (fp.config.onMonthChange ||= []).push(sync);
+  (fp.config.onYearChange ||= []).push(sync);
+}
+
+
 /** Inicializa el calendario inline dentro del modal */
 function initModalDatePicker(dni, colorHex = "#135322") {
   const host = document.getElementById("modalCalendarHost");
   if (!host) return;
 
+  // 👇 Si ya existe, destruí la instancia vieja (que vino sin header)
+  if (FP) {
+    try { FP.destroy(); } catch { }
+    FP = null;
+  }
+
   FP = flatpickr(host, {
-  inline: true,
-  locale: "es",
-  dateFormat: "Y-m-d",
-  defaultDate: CURRENT_DATE || new Date(),
-  disableMobile: true,
+    inline: true,
+    locale: "es",
+    dateFormat: "Y-m-d",
+    defaultDate: CURRENT_DATE || new Date(),
+    disableMobile: true,
+
+    // 👇 Esto muestra mes y año como seleccionables
+    monthSelectorType: "dropdown",
+    showMonths: 1,
 
     onReady: async (_s, _t, inst) => {
+      attachYearDropdown(inst);
       await ensureMonthDecorations(inst, inst.__dni);
       prefetchNeighbors(inst.__dni, inst);
     },
+    onOpen: (_s, _t, inst) => attachYearDropdown(inst),
     onMonthChange: async (_s, _t, inst) => {
       await ensureMonthDecorations(inst, inst.__dni);
       prefetchNeighbors(inst.__dni, inst);
@@ -91,7 +150,6 @@ function initModalDatePicker(dni, colorHex = "#135322") {
     },
 
 
-    // contador por día (dot)
     // contador por día (dot)
     onDayCreate: function (_sel, _str, inst, dayElem) {
       if (
