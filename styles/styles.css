@@ -1984,3 +1984,29 @@ textarea.form-control {
 #btnHoy.day-chip.btn-sm {
     line-height: 36px;
 }
+
+.flatpickr-innerContainer {
+    overflow: auto !important;
+}
+
+@media (max-width: 375px) {
+    .flatpickr-innerContainer{
+        overflow: scroll !important;
+    }
+
+    .flatpickr-calendar{
+        padding: 0 !important;
+    }
+    
+    .flatpickr-prev-month{
+        padding: 0 !important;
+    }
+
+    .modal-calendar .modal-body{
+        padding: 0 !important;
+    }
+
+    .flatpickr-months{
+        margin: 1rem 0;
+    }
+}
