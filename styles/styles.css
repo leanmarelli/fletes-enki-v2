@@ -2036,3 +2036,9 @@ textarea.form-control {
 .day-totals{
     margin-bottom: 10rem;
 }
+
+/* Bootstrap 5: modal-backdrop ≈ 1050, modal ≈ 1055, offcanvas-backdrop ≈ 1040 */
+.fab {
+    z-index: 1030;
+    /* debajo de cualquier backdrop/modal */
+}
