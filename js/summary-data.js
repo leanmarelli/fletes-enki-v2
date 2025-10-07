@@ -241,13 +241,15 @@ function totalBruto(viajes = []) {
     }
     return t;
 }
+
 function computeWithFee(gross, feePct) {
     const g = Number(gross) || 0;
-    const f = Number(feePct) || 0;
-    const feeAmount = Math.round(g * f / 100);
-    const net = g - feeAmount;
+    const f = Number(feePct) || 0; // % que cobra el fletero (ej: 75)
+    const net = Math.round(g * f / 100);   // lo que cobra el fletero
+    const feeAmount = g - net;             // diferencia (para info)
     return { gross: g, feePct: f, feeAmount, net };
 }
+
 
 /* ───────────────────────────────────────────────────────────
    Firestore: Ajustes por período (persistentes)
@@ -769,7 +771,8 @@ async function boot() {
 
     const setAndRefresh = (dateObj) => {
         CURRENT_DATE = dateObj;
-        const s = ymd(dateObj);
+        const s = ymd(dateObj); 
+        document.body.dataset.currentYmd = s;  
         if (inp) inp.value = s;
         updateRangeChipLabel(s);
         setPersona(CURRENT);

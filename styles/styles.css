@@ -789,6 +789,7 @@ body {
     border-color: #343a40;
     color: #fff;
 }
+
 /* Barra superior de fecha */
 .date-toolbar {
     row-gap: .5rem;
@@ -1032,11 +1033,11 @@ body {
     }
 }
 
-.no-selected{
+.no-selected {
     min-width: 100px
 }
 
-* Caja de acciones fija al fondo en mobile */ .form-actions-sticky {
+.form-actions-sticky {
     position: sticky;
     bottom: 0;
     background: #fff;
@@ -1366,4 +1367,670 @@ textarea.form-control {
 
 .sd-heading-text {
     font-weight: 600;
+}
+
+/* =========================
+   DatePicker en MODAL (Flatpickr inline)
+   ========================= */
+
+/* Variables de tamaño */
+:root {
+    --cal-cell: 2.8rem;
+    /* tamaño base de cada día */
+    --dot: 14px;
+    /* tamaño del contador */
+    --gap-inside: 4px;
+    /* espacio número ↔ dot */
+}
+
+/* ---- Modal ---- */
+.modal-calendar .modal-dialog {
+    max-width: 900px;
+}
+
+@media (max-width:576px) {
+    .modal-calendar .modal-dialog {
+        max-width: 92vw;
+    }
+}
+
+#dateModal .modal-content {
+    border-radius: 16px;
+    box-shadow: 0 18px 40px rgba(16, 24, 40, .18);
+}
+
+#dateModal .modal-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #eef2f6;
+}
+
+#dateModal .modal-title {
+    font-weight: 800;
+    letter-spacing: .2px;
+}
+
+/* Footer: solo “Hoy” a la derecha */
+#dateModal .modal-footer {
+    border-top: 1px solid #eef2f6;
+    padding: 12px 14px;
+    justify-content: flex-end;
+}
+
+#dateModal .modal-footer [data-bs-dismiss="modal"] {
+    display: none !important;
+}
+
+/* Botón Hoy (pill) */
+#btnModalToday {
+    --btn-bg: color-mix(in srgb, var(--color-primario, #198754) 10%, #fff);
+    --btn-bd: color-mix(in srgb, var(--color-primario, #198754) 25%, #d1e7dd);
+    background: var(--btn-bg);
+    color: var(--color-primario, #198754);
+    border: 1px solid var(--btn-bd);
+    border-radius: 999px;
+    padding: .45rem .9rem;
+    font-weight: 700;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+}
+
+#btnModalToday:hover {
+    background: color-mix(in srgb, var(--color-primario, #198754) 14%, #fff);
+    box-shadow: 0 3px 10px rgba(16, 24, 40, .08);
+}
+
+/* ---- Calendario inline ---- */
+#dateModal .flatpickr-calendar.inline {
+    max-width: 860px;
+    margin-inline: auto;
+    border: 0;
+    box-shadow: none;
+}
+
+#dateModal .flatpickr-innerContainer {
+    display: block;
+}
+
+#dateModal .flatpickr-days {
+    width: 100% !important;
+}
+
+#dateModal .dayContainer {
+    width: 100% !important;
+    max-width: none !important;
+    display: grid !important;
+    grid-template-columns: repeat(7, minmax(var(--cal-cell), 1fr));
+    gap: 8px;
+}
+
+/* Ocultar días de meses adyacentes */
+#dateModal .flatpickr-day.prevMonthDay,
+#dateModal .flatpickr-day.nextMonthDay {
+    display: none;
+    pointer-events: none;
+}
+
+/* Celda día = “card” con número arriba y dot abajo */
+#dateModal .flatpickr-day {
+    display: grid;
+    grid-template-rows: 1fr var(--dot);
+    align-items: center;
+    justify-items: center;
+    row-gap: var(--gap-inside);
+    width: 100% !important;
+    height: calc(var(--cal-cell) + var(--gap-inside));
+    line-height: 1;
+    padding: 0;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid #e9eef4;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .05);
+    transition: transform .08s, box-shadow .12s, border-color .12s, background-color .12s;
+}
+
+#dateModal .flatpickr-day:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(16, 24, 40, .08);
+    border-color: #dfe6ee;
+}
+
+#dateModal .flatpickr-day.today:not(.selected) {
+    border-color: var(--color-primario, #198754);
+}
+
+#dateModal .flatpickr-day.selected {
+    background: #2d6cdf;
+    color: #fff;
+    border-color: transparent;
+    box-shadow:
+        0 0 0 3px rgba(45, 108, 223, .14),
+        0 10px 24px rgba(45, 108, 223, .28);
+}
+
+/* Dot/contador centrado en la fila inferior (nunca tapa el número) */
+#dateModal .flatpickr-day.has-trips .trip-badge {
+    grid-row: 2;
+    position: static;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--dot);
+    height: var(--dot);
+    line-height: var(--dot);
+    padding: 0 4px;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 10px;
+    color: #fff;
+    pointer-events: none;
+    box-shadow: 0 0 0 2px #fff;
+}
+
+#dateModal .flatpickr-day.has-trips .trip-badge.badge-2d {
+    min-width: 16px;
+    height: 16px;
+    line-height: 16px;
+    font-size: 10px;
+}
+
+#dateModal .flatpickr-day.has-trips .trip-badge.badge-3d {
+    min-width: 18px;
+    height: 18px;
+    line-height: 18px;
+    font-size: 9px;
+}
+
+/* sin flechas up/down en año */
+#dateModal .numInputWrapper span.arrowUp,
+#dateModal .numInputWrapper span.arrowDown {
+    display: none !important;
+}
+
+/* por si algún theme agrega caret al mes */
+#dateModal .flatpickr-current-month .cur-month::after {
+    content: none !important;
+}
+
+/* Encabezados de días de semana */
+#dateModal .flatpickr-weekdays {
+    margin: 4px 0 2px;
+}
+
+#dateModal .flatpickr-weekday {
+    color: #64748b;
+    font-weight: 700;
+    letter-spacing: .2px;
+}
+
+#dateModal .flatpickr-current-month {
+    display: flex !important;
+    gap: .35rem;
+    align-items: center;
+    justify-content: center;
+    padding: .25rem 0;
+    font-weight: 800;
+    color: #1f2937;
+}
+
+/* sin flechas up/down en el año */
+#dateModal .numInputWrapper span.arrowUp,
+#dateModal .numInputWrapper span.arrowDown {
+    display: none !important;
+}
+
+/* por si algún theme agrega caret al mes */
+#dateModal .flatpickr-current-month .cur-month::after {
+    content: none !important;
+}
+
+/* ——— Días: recuperar padding/espaciado del número y el dot ——— */
+:root {
+    --gap-inside: 6px;
+}
+
+/* un poco más de aire */
+
+#dateModal .flatpickr-day {
+    display: grid;
+    grid-template-rows: 1fr var(--dot);
+    /* número arriba, dot abajo */
+    row-gap: var(--gap-inside);
+    align-items: center;
+    justify-items: center;
+    line-height: 1;
+    /* que el número no se estire */
+    padding: .15rem 0 .35rem;
+    /* separa del borde inferior */
+    border-radius: 12px;
+}
+
+#dateModal .flatpickr-day.has-trips .trip-badge {
+    grid-row: 2;
+    position: static;
+    /* nunca tapa el número */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--dot);
+    height: var(--dot);
+    line-height: var(--dot);
+    padding: 0 4px;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 10px;
+    color: #fff;
+    pointer-events: none;
+    box-shadow: 0 0 0 2px #fff;
+}
+
+#dateModal .flatpickr-current-month {
+    display: flex !important;
+    gap: .35rem;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: #1f2937;
+    padding: 0;
+}
+
+
+/* Semana: deja un pequeño aire con el header */
+#dateModal .flatpickr-weekdays {
+    margin: 6px 0 2px;
+}
+
+/* ===== Días: número arriba y dot abajo (alineado), con aire ===== */
+:root {
+    --gap-inside: 6px;
+}
+
+/* compacta/expande separación número ↔ dot */
+
+#dateModal .flatpickr-day {
+    display: grid;
+    grid-template-rows: 1fr var(--dot);
+    row-gap: var(--gap-inside);
+    align-items: center;
+    justify-items: center;
+    line-height: 1;
+    /* el número no “estira” la celda */
+    padding: .15rem 0 .40rem;
+    /* extra aire abajo para que el dot no toque el borde */
+    border-radius: 12px;
+}
+
+/* Dot centrado (nunca tapa el número) */
+#dateModal .flatpickr-day.has-trips .trip-badge {
+    grid-row: 2;
+    position: static;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--dot);
+    height: var(--dot);
+    line-height: var(--dot);
+    padding: 0 4px;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 10px;
+    color: #fff;
+    pointer-events: none;
+    box-shadow: 0 0 0 2px #fff;
+}
+
+/* Seleccionado: mantiene la separación inferior igual (no se “pega” el dot) */
+#dateModal .flatpickr-day.selected {
+    padding-bottom: .40rem;
+}
+
+#dateModal .modal-footer {
+    border-top: 1px solid #eef2f6;
+    padding: 12px 14px;
+    justify-content: flex-end;
+}
+
+#dateModal .modal-footer [data-bs-dismiss="modal"] {
+    display: none !important;
+}
+
+/* ======= Header Mes/Año ======= */
+#dateModal .flatpickr-current-month {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+}
+
+
+
+/* Mes (select) y Año (input) comparten mismo “chip” */
+#dateModal .flatpickr-monthDropdown-months,
+#dateModal .flatpickr-current-month .cur-year {
+    height: 36px !important;
+    line-height: 36px;
+    border-radius: 12px;
+    border: 1px solid #E0E3E7;
+    background: #fff;
+    font-size: 16px;
+    color: #0B1F26;
+    padding: 0 36px 0 12px;
+    /* espacio para el chevrón a la derecha */
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+/* Mes (select): reset nativo + chevrón */
+#dateModal .flatpickr-monthDropdown-months {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 10l5 5 5-5' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px 16px;
+}
+
+/* Año (input number): ancho fijo y centrado */
+#dateModal .flatpickr-current-month .cur-year {
+    width: 92px;
+    text-align: center;
+    padding-right: 12px;
+    /* no necesita chevrón */
+}
+
+/* Hover / Focus */
+#dateModal .flatpickr-monthDropdown-months:hover,
+#dateModal .flatpickr-current-month .cur-year:hover {
+    border-color: #CBD5E1;
+}
+
+#dateModal .flatpickr-monthDropdown-months:focus,
+#dateModal .flatpickr-current-month .cur-year:focus {
+    outline: none;
+    border-color: #135322;
+    /* tu color */
+    box-shadow: 0 0 0 3px rgba(19, 83, 34, .15);
+}
+
+/* Desactivar flechas “up/down” de flatpickr y spinners nativos */
+#dateModal .flatpickr-current-month .numInputWrapper .arrowUp,
+#dateModal .flatpickr-current-month .numInputWrapper .arrowDown {
+    display: none !important;
+}
+
+#dateModal .flatpickr-current-month .cur-year::-webkit-outer-spin-button,
+#dateModal .flatpickr-current-month .cur-year::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+#dateModal .flatpickr-current-month .cur-year {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+/* ====== Contenedor general ====== */
+#dateModal .flatpickr-calendar,
+#dateModal .flatpickr-wrapper {
+    box-sizing: border-box;
+}
+
+#dateModal .flatpickr-calendar.inline {
+    width: auto;
+    /* evita recortes horizontales */
+    padding: 8px 12px 12px;
+    /* respiración interna */
+}
+
+/* Grilla de días con aire */
+#dateModal .flatpickr-days {
+    padding: 2px 6px 0;
+    overflow: visible;
+}
+
+#dateModal .dayContainer {
+    gap: 6px 6px;
+}
+
+/* requiere flatpickr >=4.6, si no, usar margin en .flatpickr-day */
+#dateModal .flatpickr-day {
+    margin: 3px;
+    /* fallback por si ‘gap’ no aplica */
+    border-radius: 12px;
+}
+
+/* Estado seleccionado (y foco) */
+#dateModal .flatpickr-day.selected,
+#dateModal .flatpickr-day.selected:focus,
+#dateModal .flatpickr-day.startRange,
+#dateModal .flatpickr-day.endRange {
+    background: #135322;
+    /* tu verde */
+    border-color: #135322;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(19, 83, 34, .25);
+}
+
+/* Hover */
+#dateModal .flatpickr-day:hover {
+    border-color: #13532233;
+    /* sutil */
+}
+
+/* Hoy sin pelearse con seleccionado */
+#dateModal .flatpickr-day.today:not(.selected) {
+    border-color: #135322;
+    color: #135322;
+}
+
+/* Mismo look "pill" que el mes */
+#dateModal .fp-yearSelect,
+#dateModal .flatpickr-monthDropdown-months {
+    height: 36px !important;
+    line-height: 36px;
+    border-radius: 12px;
+    border: 1px solid #E0E3E7;
+    background: #fff;
+    font-size: 16px;
+    color: #0B1F26;
+    padding: 0 36px 0 12px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+    transition: border-color .15s ease, box-shadow .15s ease;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 10l5 5 5-5' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px 16px;
+}
+
+#dateModal .fp-yearSelect:hover,
+#dateModal .flatpickr-monthDropdown-months:hover {
+    border-color: #CBD5E1;
+}
+
+#dateModal .fp-yearSelect:focus,
+#dateModal .flatpickr-monthDropdown-months:focus {
+    outline: none;
+    border-color: #135322;
+    box-shadow: 0 0 0 3px rgba(19, 83, 34, .15);
+}
+
+/* Compacto en móviles */
+@media (max-width: 560px) {
+
+    #dateModal .fp-yearSelect,
+    #dateModal .flatpickr-monthDropdown-months {
+        height: 32px;
+        line-height: 32px;
+        border-radius: 10px;
+        font-size: 15px;
+    }
+}
+
+/* Evitar clipping del header (mes/año) y su dropdown */
+#dateModal .flatpickr-calendar,
+#dateModal .flatpickr-months,
+#dateModal .flatpickr-month {
+    overflow: visible !important;
+}
+
+/* Alinear encabezados de semana con la grilla de días */
+#dateModal .flatpickr-weekdays {
+    padding: 0 6px;
+}
+
+/* que coincida con .flatpickr-days */
+#dateModal .flatpickr-days {
+    padding: 0 6px;
+}
+
+/* si ya lo tenías, dejalo igual */
+
+/* Normalizar foco del select Mes y del Año dropdown */
+#dateModal .flatpickr-monthDropdown-months:focus,
+#dateModal .fp-yearSelect:focus {
+    outline: none;
+    border-color: #135322;
+    box-shadow: 0 0 0 3px rgba(19, 83, 34, .15);
+    background-color: #fff;
+    /* evita background azul del UA */
+}
+
+/* NO ocultar: aseguramos que ocupen su celda */
+#dateModal .flatpickr-day.prevMonthDay,
+#dateModal .flatpickr-day.nextMonthDay {
+    display: inline-block !important;
+    /* recupera el layout */
+    opacity: .35;
+    color: #64748B;
+    pointer-events: none;
+    /* que no se puedan clickear */
+}
+
+/* Fallback */
+#dateModal {
+    --brand: #135322;
+}
+
+/* Día seleccionado del calendario con color del fletero */
+#dateModal .flatpickr-day.selected,
+#dateModal .flatpickr-day.selected:focus,
+#dateModal .flatpickr-day.startRange,
+#dateModal .flatpickr-day.endRange {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--brand) 30%, transparent);
+}
+
+/* Header “Dom 02 de Nov” (fuera del modal) */
+#dayViewRoot .selected-day-pill {
+    background: color-mix(in srgb, var(--brand) 18%, #ffffff);
+    color: #0B1F26;
+    border: 1px solid color-mix(in srgb, var(--brand) 22%, #E6E8EB);
+}
+
+/* chip base (neutral, como selector de fecha) */
+.chip {
+    height: 36px;
+    border-radius: 999px;
+    padding: 0 14px;
+    border: 1px solid #E0E3E7;
+    background: #fff;
+    color: #0B1F26;
+    font-weight: 600;
+}
+
+/* chip activo (“estamos en hoy”) */
+.chip--brand {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+    box-shadow: 0 1px 8px color-mix(in srgb, var(--brand) 30%, transparent);
+}
+
+/* Aspecto chip neutro (igual al selector de fecha) */
+#btnHoy.day-chip, #btnCargar.day-chip{
+    border-radius: 999px;
+    height: 36px;
+    padding: 0 14px;
+    border: 1px solid #E0E3E7 !important;
+    font-weight: 600;
+    box-shadow: none;
+}
+
+
+#btnHoy.day-chip:focus, #btnCargar.day-chip:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(19, 83, 34, .15) !important;
+    /* tu verde suave */
+}
+
+/* Alineado vertical con el date chip (por si el otro tiene 36px) */
+#btnHoy.day-chip.btn-sm, #btnCargar.day-chip.btn-sm {
+    line-height: 36px;
+}
+
+.flatpickr-innerContainer {
+    overflow: auto !important;
+}
+
+@media (max-width: 375px) {
+    .flatpickr-monthDropdown-months {
+        background-image: none !important;
+        width: fit-content !important;
+        padding: 0 0 0 .5rem !important;
+    }
+
+    .fp-yearSelect {
+        background-image: none !important;
+        width: fit-content !important;
+        padding: 0 .5rem 0 .5rem !important;
+    }
+}
+
+.flatpickr-prev-month {
+    height: fit-content !important;
+    padding: 0 !important;
+    position: unset !important;
+}
+
+.flatpickr-next-month {
+    height: fit-content !important;
+    padding: 0 !important;
+    position: unset !important;
+}
+
+.flatpickr-months {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+}
+
+.flatpickr-months .flatpickr-prev-month:hover svg,
+.flatpickr-months .flatpickr-next-month:hover svg {
+    fill: var(--brand) !important;
+}
+
+/* FAB global “+” fijo */
+.fab {
+    position: fixed;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .18);
+    z-index: 1061;
+    background: var(--brand);
+        border-color: var(--brand);
+    /* por arriba del offcanvas (1060) y debajo de modal backdrop (1060-1065). Sube si hiciera falta */
+    font-size: 1.25rem;
+}
+
+.fab:focus-visible {
+    outline-offset: 2px;
 }

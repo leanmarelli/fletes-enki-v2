@@ -7,12 +7,36 @@ import { db, collection, getDocs, addDoc, showLoading, doc, getDoc, updateDoc, d
 import { enhanceColorSelect } from "./color-select.js";
 
 const qs = new URLSearchParams(location.search);
-const MODE = (qs.get("mode") || "").toLowerCase(); // "edit" | ""
+const MODE = (qs.get("mode") || "").toLowerCase();
 const EDIT_DNI = qs.get("dni") || "";
 const EDIT_ID = qs.get("id") || "";
 const RETURN_TO = qs.get("return") || "";
 
+
 let modalExito, modalError;
+
+const DATE_Q = (qs.get("date") || "").trim(); // puede venir del FAB
+
+function todayYMD() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+}
+
+// Acepta "YYYY-MM-DD" o "dd/mm/yyyy" y devuelve YYYY-MM-DD; si no matchea, devuelve ""
+function asYMD(s = "") {
+    if (!s) return "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (m) {
+        const [, d, mo, y] = m;
+        return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    }
+    return "";
+}
+
 
 // ------------------- control de navegación segura -------------------
 let isDirty = false;
@@ -236,7 +260,15 @@ function bootModals() {
             if (isEdit) showLoading(true);
             bootModals();
             await hydrateSelectFleteroForForm();
+
+            if (MODE !== "edit") {
+                // Si vino ?date= usa esa; si no, usa hoy
+                const ymd = asYMD(DATE_Q) || todayYMD();
+                const fechaInput = document.getElementById("fecha");
+                if (fechaInput) fechaInput.value = ymd;
+            }
             await loadEditIfNeeded();
+
         } finally {
             if (!isEdit) HYDRATING = false; // en create, cerramos hidratación acá
             if (isEdit) showLoading(false);
