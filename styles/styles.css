@@ -2032,3 +2032,7 @@ textarea.form-control {
 .fab:focus-visible {
     outline-offset: 2px;
 }
+
+.day-totals{
+    margin-bottom: 10rem;
+}
