@@ -789,6 +789,7 @@ body {
     border-color: #343a40;
     color: #fff;
 }
+
 /* Barra superior de fecha */
 .date-toolbar {
     row-gap: .5rem;
@@ -1032,7 +1033,7 @@ body {
     }
 }
 
-.no-selected{
+.no-selected {
     min-width: 100px
 }
 
@@ -1367,162 +1368,197 @@ textarea.form-control {
 .sd-heading-text {
     font-weight: 600;
 }
+
 /* =========================
    DatePicker en MODAL (Flatpickr inline)
    ========================= */
 
 /* Variables de tamaño */
-:root{
-  --cal-cell: 2.8rem;   /* tamaño base de cada día */
-  --dot: 14px;          /* tamaño del contador */
-  --gap-inside: 4px;    /* espacio número ↔ dot */
+:root {
+    --cal-cell: 2.8rem;
+    /* tamaño base de cada día */
+    --dot: 14px;
+    /* tamaño del contador */
+    --gap-inside: 4px;
+    /* espacio número ↔ dot */
 }
 
 /* ---- Modal ---- */
-.modal-calendar .modal-dialog{
-  max-width: 900px;
+.modal-calendar .modal-dialog {
+    max-width: 900px;
 }
-@media (max-width:576px){
-  .modal-calendar .modal-dialog{ max-width: 92vw; }
+
+@media (max-width:576px) {
+    .modal-calendar .modal-dialog {
+        max-width: 92vw;
+    }
 }
-#dateModal .modal-content{
-  border-radius:16px;
-  box-shadow:0 18px 40px rgba(16,24,40,.18);
+
+#dateModal .modal-content {
+    border-radius: 16px;
+    box-shadow: 0 18px 40px rgba(16, 24, 40, .18);
 }
-#dateModal .modal-header{
-  padding:12px 16px;
-  border-bottom:1px solid #eef2f6;
+
+#dateModal .modal-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #eef2f6;
 }
-#dateModal .modal-title{ font-weight:800; letter-spacing:.2px; }
+
+#dateModal .modal-title {
+    font-weight: 800;
+    letter-spacing: .2px;
+}
 
 /* Footer: solo “Hoy” a la derecha */
-#dateModal .modal-footer{
-  border-top:1px solid #eef2f6;
-  padding:12px 14px;
-  justify-content:flex-end;
+#dateModal .modal-footer {
+    border-top: 1px solid #eef2f6;
+    padding: 12px 14px;
+    justify-content: flex-end;
 }
-#dateModal .modal-footer [data-bs-dismiss="modal"]{ display:none !important; }
+
+#dateModal .modal-footer [data-bs-dismiss="modal"] {
+    display: none !important;
+}
 
 /* Botón Hoy (pill) */
-#btnModalToday{
-  --btn-bg: color-mix(in srgb, var(--color-primario,#198754) 10%, #fff);
-  --btn-bd: color-mix(in srgb, var(--color-primario,#198754) 25%, #d1e7dd);
-  background:var(--btn-bg);
-  color:var(--color-primario,#198754);
-  border:1px solid var(--btn-bd);
-  border-radius:999px;
-  padding:.45rem .9rem;
-  font-weight:700;
-  box-shadow:0 1px 2px rgba(16,24,40,.04);
+#btnModalToday {
+    --btn-bg: color-mix(in srgb, var(--color-primario, #198754) 10%, #fff);
+    --btn-bd: color-mix(in srgb, var(--color-primario, #198754) 25%, #d1e7dd);
+    background: var(--btn-bg);
+    color: var(--color-primario, #198754);
+    border: 1px solid var(--btn-bd);
+    border-radius: 999px;
+    padding: .45rem .9rem;
+    font-weight: 700;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
 }
-#btnModalToday:hover{
-  background:color-mix(in srgb, var(--color-primario,#198754) 14%, #fff);
-  box-shadow:0 3px 10px rgba(16,24,40,.08);
+
+#btnModalToday:hover {
+    background: color-mix(in srgb, var(--color-primario, #198754) 14%, #fff);
+    box-shadow: 0 3px 10px rgba(16, 24, 40, .08);
 }
 
 /* ---- Calendario inline ---- */
-#dateModal .flatpickr-calendar.inline{
-  max-width:860px;
-  margin-inline:auto;
-  border:0;
-  box-shadow:none;
+#dateModal .flatpickr-calendar.inline {
+    max-width: 860px;
+    margin-inline: auto;
+    border: 0;
+    box-shadow: none;
 }
 
-#dateModal .flatpickr-innerContainer{ display:block; }
-#dateModal .flatpickr-days{ width:100% !important; }
-#dateModal .dayContainer{
-  width:100% !important;
-  max-width:none !important;
-  display:grid !important;
-  grid-template-columns:repeat(7, minmax(var(--cal-cell), 1fr));
-  gap:8px;
+#dateModal .flatpickr-innerContainer {
+    display: block;
+}
+
+#dateModal .flatpickr-days {
+    width: 100% !important;
+}
+
+#dateModal .dayContainer {
+    width: 100% !important;
+    max-width: none !important;
+    display: grid !important;
+    grid-template-columns: repeat(7, minmax(var(--cal-cell), 1fr));
+    gap: 8px;
 }
 
 /* Ocultar días de meses adyacentes */
 #dateModal .flatpickr-day.prevMonthDay,
-#dateModal .flatpickr-day.nextMonthDay{
-  display: none;
-  pointer-events:none;
+#dateModal .flatpickr-day.nextMonthDay {
+    display: none;
+    pointer-events: none;
 }
 
 /* Celda día = “card” con número arriba y dot abajo */
-#dateModal .flatpickr-day{
-  display:grid;
-  grid-template-rows:1fr var(--dot);
-  align-items:center;
-  justify-items:center;
-  row-gap:var(--gap-inside);
-  width:100% !important;
-  height:calc(var(--cal-cell) + var(--gap-inside));
-  line-height:1;
-  padding:0;
-  border-radius:12px;
-  background:#fff;
-  border:1px solid #e9eef4;
-  box-shadow:0 1px 2px rgba(16,24,40,.05);
-  transition:transform .08s, box-shadow .12s, border-color .12s, background-color .12s;
+#dateModal .flatpickr-day {
+    display: grid;
+    grid-template-rows: 1fr var(--dot);
+    align-items: center;
+    justify-items: center;
+    row-gap: var(--gap-inside);
+    width: 100% !important;
+    height: calc(var(--cal-cell) + var(--gap-inside));
+    line-height: 1;
+    padding: 0;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid #e9eef4;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .05);
+    transition: transform .08s, box-shadow .12s, border-color .12s, background-color .12s;
 }
-#dateModal .flatpickr-day:hover{
-  transform:translateY(-1px);
-  box-shadow:0 4px 14px rgba(16,24,40,.08);
-  border-color:#dfe6ee;
+
+#dateModal .flatpickr-day:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(16, 24, 40, .08);
+    border-color: #dfe6ee;
 }
-#dateModal .flatpickr-day.today:not(.selected){
-  border-color:var(--color-primario,#198754);
+
+#dateModal .flatpickr-day.today:not(.selected) {
+    border-color: var(--color-primario, #198754);
 }
-#dateModal .flatpickr-day.selected{
-  background:#2d6cdf;
-  color:#fff;
-  border-color:transparent;
-  box-shadow:
-    0 0 0 3px rgba(45,108,223,.14),
-    0 10px 24px rgba(45,108,223,.28);
+
+#dateModal .flatpickr-day.selected {
+    background: #2d6cdf;
+    color: #fff;
+    border-color: transparent;
+    box-shadow:
+        0 0 0 3px rgba(45, 108, 223, .14),
+        0 10px 24px rgba(45, 108, 223, .28);
 }
 
 /* Dot/contador centrado en la fila inferior (nunca tapa el número) */
-#dateModal .flatpickr-day.has-trips .trip-badge{
-  grid-row:2;
-  position:static;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  min-width:var(--dot);
-  height:var(--dot);
-  line-height:var(--dot);
-  padding:0 4px;
-  border-radius:999px;
-  font-weight:800;
-  font-size:10px;
-  color:#fff;
-  pointer-events:none;
-  box-shadow:0 0 0 2px #fff;
+#dateModal .flatpickr-day.has-trips .trip-badge {
+    grid-row: 2;
+    position: static;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--dot);
+    height: var(--dot);
+    line-height: var(--dot);
+    padding: 0 4px;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 10px;
+    color: #fff;
+    pointer-events: none;
+    box-shadow: 0 0 0 2px #fff;
 }
-#dateModal .flatpickr-day.has-trips .trip-badge.badge-2d{
-  min-width:16px; height:16px; line-height:16px; font-size:10px;
+
+#dateModal .flatpickr-day.has-trips .trip-badge.badge-2d {
+    min-width: 16px;
+    height: 16px;
+    line-height: 16px;
+    font-size: 10px;
 }
-#dateModal .flatpickr-day.has-trips .trip-badge.badge-3d{
-  min-width:18px; height:18px; line-height:18px; font-size:9px;
+
+#dateModal .flatpickr-day.has-trips .trip-badge.badge-3d {
+    min-width: 18px;
+    height: 18px;
+    line-height: 18px;
+    font-size: 9px;
 }
 
 /* sin flechas up/down en año */
 #dateModal .numInputWrapper span.arrowUp,
-#dateModal .numInputWrapper span.arrowDown{ display:none !important; }
-/* por si algún theme agrega caret al mes */
-#dateModal .flatpickr-current-month .cur-month::after{ content:none !important; }
-
-/* Botones prev/next como “chips” */
-#dateModal .flatpickr-prev-month,
-#dateModal .flatpickr-next-month{
-  width:36px; height:36px; border-radius:999px;
-  display:grid; place-items:center; transition:background-color .12s ease;
+#dateModal .numInputWrapper span.arrowDown {
+    display: none !important;
 }
-#dateModal .flatpickr-prev-month:hover,
-#dateModal .flatpickr-next-month:hover{ background:#f1f5f9; }
+
+/* por si algún theme agrega caret al mes */
+#dateModal .flatpickr-current-month .cur-month::after {
+    content: none !important;
+}
 
 /* Encabezados de días de semana */
-#dateModal .flatpickr-weekdays{ margin:4px 0 2px; }
-#dateModal .flatpickr-weekday{
-  color:#64748b; font-weight:700; letter-spacing:.2px;
+#dateModal .flatpickr-weekdays {
+    margin: 4px 0 2px;
+}
+
+#dateModal .flatpickr-weekday {
+    color: #64748b;
+    font-weight: 700;
+    letter-spacing: .2px;
 }
 
 #dateModal .flatpickr-current-month {
@@ -1544,24 +1580,6 @@ textarea.form-control {
 /* por si algún theme agrega caret al mes */
 #dateModal .flatpickr-current-month .cur-month::after {
     content: none !important;
-}
-
-/* ——— Flechas: dar aire ——— */
-#dateModal .flatpickr-prev-month,
-#dateModal .flatpickr-next-month {
-    width: 36px;
-    height: 36px;
-    border-radius: 999px;
-    display: grid;
-    place-items: center;
-    margin: 0 .25rem;
-    /* <— espacio lateral */
-    transition: background-color .12s ease;
-}
-
-#dateModal .flatpickr-prev-month:hover,
-#dateModal .flatpickr-next-month:hover {
-    background: #f1f5f9;
 }
 
 /* ——— Días: recuperar padding/espaciado del número y el dot ——— */
@@ -1679,7 +1697,6 @@ textarea.form-control {
     display: flex !important;
     align-items: center;
     justify-content: center;
-    gap: 12px;
     font-weight: 600;
 }
 
@@ -1688,7 +1705,7 @@ textarea.form-control {
 /* Mes (select) y Año (input) comparten mismo “chip” */
 #dateModal .flatpickr-monthDropdown-months,
 #dateModal .flatpickr-current-month .cur-year {
-    height: 36px;
+    height: 36px !important;
     line-height: 36px;
     border-radius: 12px;
     border: 1px solid #E0E3E7;
@@ -1710,8 +1727,6 @@ textarea.form-control {
     background-repeat: no-repeat;
     background-position: right 12px center;
     background-size: 16px 16px;
-    min-width: 160px;
-    /* podés subirlo/bajarlo */
 }
 
 /* Año (input number): ancho fijo y centrado */
@@ -1753,22 +1768,6 @@ textarea.form-control {
     appearance: textfield;
 }
 
-/* Modo compacto en pantallas chicas */
-@media (max-width: 560px) {
-
-    #dateModal .flatpickr-monthDropdown-months,
-    #dateModal .flatpickr-current-month .cur-year {
-        height: 32px;
-        line-height: 32px;
-        border-radius: 10px;
-        font-size: 15px;
-    }
-
-    #dateModal .flatpickr-monthDropdown-months {
-        min-width: 140px;
-    }
-}
-
 /* ====== Contenedor general ====== */
 #dateModal .flatpickr-calendar,
 #dateModal .flatpickr-wrapper {
@@ -1799,19 +1798,6 @@ textarea.form-control {
     border-radius: 12px;
 }
 
-/* Botones prev/next más clickeables */
-#dateModal .flatpickr-prev-month,
-#dateModal .flatpickr-next-month {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-}
-
-#dateModal .flatpickr-prev-month:hover,
-#dateModal .flatpickr-next-month:hover {
-    background: rgba(0, 0, 0, .05);
-}
-
 /* Estado seleccionado (y foco) */
 #dateModal .flatpickr-day.selected,
 #dateModal .flatpickr-day.selected:focus,
@@ -1839,7 +1825,7 @@ textarea.form-control {
 /* Mismo look "pill" que el mes */
 #dateModal .fp-yearSelect,
 #dateModal .flatpickr-monthDropdown-months {
-    height: 36px;
+    height: 36px !important;
     line-height: 36px;
     border-radius: 12px;
     border: 1px solid #E0E3E7;
@@ -1964,7 +1950,7 @@ textarea.form-control {
 }
 
 /* Aspecto chip neutro (igual al selector de fecha) */
-#btnHoy.day-chip {
+#btnHoy.day-chip, #btnCargar.day-chip{
     border-radius: 999px;
     height: 36px;
     padding: 0 14px;
@@ -1974,14 +1960,14 @@ textarea.form-control {
 }
 
 
-#btnHoy.day-chip:focus {
+#btnHoy.day-chip:focus, #btnCargar.day-chip:focus {
     outline: none;
     box-shadow: 0 0 0 3px rgba(19, 83, 34, .15) !important;
     /* tu verde suave */
 }
 
 /* Alineado vertical con el date chip (por si el otro tiene 36px) */
-#btnHoy.day-chip.btn-sm {
+#btnHoy.day-chip.btn-sm, #btnCargar.day-chip.btn-sm {
     line-height: 36px;
 }
 
@@ -1990,23 +1976,61 @@ textarea.form-control {
 }
 
 @media (max-width: 375px) {
-    .flatpickr-innerContainer{
-        overflow: scroll !important;
+    .flatpickr-monthDropdown-months {
+        background-image: none !important;
+        width: fit-content !important;
+        padding: 0 0 0 .5rem !important;
     }
 
-    .flatpickr-calendar{
-        padding: 0 !important;
+    .fp-yearSelect {
+        background-image: none !important;
+        width: fit-content !important;
+        padding: 0 .5rem 0 .5rem !important;
     }
-    
-    .flatpickr-prev-month{
-        padding: 0 !important;
-    }
+}
 
-    .modal-calendar .modal-body{
-        padding: 0 !important;
-    }
+.flatpickr-prev-month {
+    height: fit-content !important;
+    padding: 0 !important;
+    position: unset !important;
+}
 
-    .flatpickr-months{
-        margin: 1rem 0;
-    }
+.flatpickr-next-month {
+    height: fit-content !important;
+    padding: 0 !important;
+    position: unset !important;
+}
+
+.flatpickr-months {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+}
+
+.flatpickr-months .flatpickr-prev-month:hover svg,
+.flatpickr-months .flatpickr-next-month:hover svg {
+    fill: var(--brand) !important;
+}
+
+/* FAB global “+” fijo */
+.fab {
+    position: fixed;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .18);
+    z-index: 1061;
+    background: var(--brand);
+        border-color: var(--brand);
+    /* por arriba del offcanvas (1060) y debajo de modal backdrop (1060-1065). Sube si hiciera falta */
+    font-size: 1.25rem;
+}
+
+.fab:focus-visible {
+    outline-offset: 2px;
 }

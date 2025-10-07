@@ -830,3 +830,58 @@ if (window.FP) {
 } else {
   // o dentro de onReady del flatpickr, llamá updateTodayButtonsState(inst)
 }
+
+const qs = new URLSearchParams(location.search);
+const dni = qs.get("dni") || "";
+
+function todayYMD() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Acepta "YYYY-MM-DD" o "dd/mm/yyyy" (lo que mostrás en el chip)
+function asYMD(s = "") {
+  if (!s) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (m) {
+    const [, dd, mm, yyyy] = m;
+    return `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+  }
+  return "";
+}
+
+function currentYMD() {
+  // 1) Body dataset (si lo seteás en schedule.js)
+  const ds = document.body?.dataset?.currentYmd;
+  if (asYMD(ds)) return asYMD(ds);
+
+  // 2) Input oculto (si tiene valor)
+  const inp = document.getElementById("datePicker");
+  if (asYMD(inp?.value)) return asYMD(inp.value);
+
+  // 3) Texto visible del chip ("dd/mm/aaaa")
+  const lab = document.getElementById("dateChipLabel")?.textContent?.trim();
+  if (asYMD(lab)) return asYMD(lab);
+
+  // 4) Último recurso: hoy
+  return todayYMD();
+}
+
+function buildHref() {
+  const p = new URLSearchParams();
+  p.set("date", currentYMD());
+  if (dni) p.set("dni", dni);
+  return `new-trip.html?${p.toString()}`;
+}
+
+const fab = document.getElementById("fabNuevoViaje");
+if (fab) fab.addEventListener("click", () => { location.href = buildHref(); });
+
+// Atajo Alt+N
+document.addEventListener("keydown", (e) => {
+  if (e.altKey && e.key.toLowerCase() === "n") {
+    e.preventDefault();
+    location.href = buildHref();
+  }
+});

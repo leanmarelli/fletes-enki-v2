@@ -114,21 +114,27 @@
         <h2 id="titulo-agenda" class="text-center mb-4"></h2>
 
         <!-- Selector de fecha (look & feel de day-chip) -->
-        <div class="date-toolbar d-flex align-items-center justify-content-center flex-wrap gap-2 mb-3">
-            <div class="datechip-wrapper position-relative">
-                <button id="dateChip" type="button" class="btn btn-outline-secondary day-chip date-chip flex-row"
-                    aria-haspopup="dialog" aria-controls="datePicker">
-                    <i class="bi bi-calendar3 me-2"></i>
-                    <span id="dateChipLabel"></span>
-                </button>
-
-                <!-- OJO: lo vamos a “des-ocultar” en iOS y ponerlo transparente sobre el botón -->
-                <input type="date" id="datePicker" class="visually-hidden" aria-label="Elegir fecha">
+        <!-- Toolbar de fecha + CTA -->
+        <div class="toolbar d-flex align-items-center flex-wrap gap-2 mb-3">
+            <!-- centro: chips de fecha -->
+            <div class="flex-grow-1 d-flex justify-content-center flex-wrap gap-2">
+                <div class="datechip-wrapper position-relative">
+                    <button id="dateChip" type="button" class="btn btn-outline-secondary day-chip date-chip flex-row"
+                        aria-haspopup="dialog" aria-controls="datePicker">
+                        <i class="bi bi-calendar3 me-2"></i>
+                        <span id="dateChipLabel"></span>
+                    </button>
+                    <input type="date" id="datePicker" class="visually-hidden" aria-label="Elegir fecha">
+                </div>
+                <button id="btnHoy" class="btn btn-outline-secondary day-chip btn-sm">Hoy</button>
             </div>
-            <button id="btnHoy" class="btn btn-outline-secondary day-chip btn-sm">Hoy</button>
         </div>
 
-
+        <!-- FAB global: Nuevo viaje -->
+        <button id="fabNuevoViaje" class="btn btn-success fab" aria-label="Nuevo viaje" title="Nuevo viaje (Alt+N)"
+            data-visible-for="admin">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i>
+        </button>
 
 
         <div class="day-nav" id="dia-navigator"></div>
