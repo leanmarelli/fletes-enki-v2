@@ -13,7 +13,8 @@
 
 import { applyFeatureGates, installActionGuards, isAdmin } from "./gate.js";
 import {
-    db, collection, getDocs, query, where, orderBy, addDoc, doc, deleteDoc, showLoading
+    db, collection, getDocs, query, where, orderBy,
+    addDoc, doc, deleteDoc, showLoading, updateDoc, setDoc // ⟵ agrega setDoc
 } from "./utils.js";
 
 /* ───────────────────────────────────────────────────────────
@@ -39,7 +40,6 @@ const esc = (s = "") => String(s).replace(/"/g, "&quot;");
 const toNum = x => Number(String(x ?? 0).replace(/[^\d-]/g, "")) || 0;
 const money = n => (Number(n) || 0).toLocaleString("es-AR");
 const first = (full = "") => full.trim().split(/\s+/)[0] || full;
-const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 
 const fmtDDMM = (ts) => {
     const d = new Date(ts || Date.now());
@@ -64,6 +64,62 @@ function updateRangeChipLabel(ymdStr) {
     const lab = document.getElementById("rangeChipLabel");
     if (lab) lab.textContent = toDMY(ymdStr);
 }
+// ── Etiquetas lindas ─────────────────────────────────────────
+const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+
+function niceDateShort(ymdStr) {
+    const [Y, M, D] = ymdStr.split("-").map(Number);
+    const d = new Date(Y, M - 1, D);
+    const dow = new Intl.DateTimeFormat("es-AR", { weekday: "short" }).format(d).replace(/\.$/, "");
+    const mon = new Intl.DateTimeFormat("es-AR", { month: "short" }).format(d).replace(/\.$/, "");
+    return `${cap(dow)} ${String(D).padStart(2, "0")} de ${cap(mon)}`;
+}
+
+function weekLabelDynamic(baseDate = new Date()) {
+    const { start, end } = weekRange(baseDate);
+    const todayYMD = ymd(new Date());
+    const inThisWeek = (todayYMD >= start && todayYMD <= end);
+    const endLabel = inThisWeek ? todayYMD : end;
+    return `Semana del ${niceDateShort(start)} al ${niceDateShort(endLabel)}`;
+}
+
+function monthLabelPretty(baseDate = new Date()) {
+    const m = new Intl.DateTimeFormat("es-AR", { month: "long", year: "numeric" }).format(baseDate);
+    return `Mes de ${cap(m)}`;
+}
+
+// Header visual bonito (usa Bootstrap Icons si las tenés)
+function fancyHeading(label, icon = "calendar2-week") {
+    return `
+    <div class="sd-heading">
+      <span class="sd-ico bi bi-${icon}"></span>
+      <span class="sd-heading-text">${label}</span>
+    </div>`;
+}
+
+/* ---------- helpers de color ---------- */
+function hexToRgb(hex = "") {
+    const m = (hex || "").trim().replace("#", "");
+    if (m.length === 3) {
+        const r = parseInt(m[0] + m[0], 16);
+        const g = parseInt(m[1] + m[1], 16);
+        const b = parseInt(m[2] + m[2], 16);
+        return { r, g, b };
+    }
+    if (m.length === 6) {
+        const r = parseInt(m.slice(0, 2), 16);
+        const g = parseInt(m.slice(2, 4), 16);
+        const b = parseInt(m.slice(4, 6), 16);
+        return { r, g, b };
+    }
+    return { r: 0, g: 0, b: 0 };
+}
+
+function softBg(hex, alpha = 0.15) {
+    const { r, g, b } = hexToRgb(hex || "#000000");
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 
 /* ───────────────────────────────────────────────────────────
    Fechas y claves de período
@@ -104,6 +160,40 @@ function niceDate(ymdStr) {
 const labelRange = (type, start, end) =>
     `${type === "week" ? "Semana del" : "Mes del"} ${niceDate(start)} al ${niceDate(end)}`;
 
+/* ───────── Tiempo real: helpers ───────── */
+const parseYMD = (s = "") => {
+    const [Y, M, D] = (s || "").split("-").map(Number);
+    return new Date(Y || 1970, (M || 1) - 1, D || 1, 0, 0, 0, 0);
+};
+const endOfDay = (d) => { const x = new Date(d); x.setHours(23, 59, 59, 999); return x; };
+
+/** Devuelve un ISO que es el “corte” para un rango: min(fin-de-rango, ahora).
+ * Si el rango es futuro, el corte es “ahora” (y no contará nada). */
+function cutoffISOForRange({ start, end }) {
+    const now = new Date();
+    const startD = parseYMD(start);
+    const endD = endOfDay(parseYMD(end));
+    const cut = now < startD ? now : (now < endD ? now : endD);
+    return cut.toISOString();
+}
+
+/** Timestamp del momento del viaje.
+ * - Usa v.when si existe (nuevo esquema).
+ * - Si no, infiere con fecha + horario; si no hubiera horario, asume 23:59. */
+function whenMillis(v) {
+    if (v?.when) {
+        const t = Date.parse(v.when);
+        if (!Number.isNaN(t)) return t;
+    }
+    const ymd = v?.fecha || v?.cliente?.fecha;
+    if (!ymd) return 0;
+    const hm = v?.cliente?.horario || v?.horario || "23:59";
+    const [Y, M, D] = ymd.split("-").map(Number);
+    const [h, m] = (hm || "23:59").split(":").map(Number);
+    return new Date(Y, (M || 1) - 1, D || 1, h || 0, m || 0, 0, 0).getTime();
+}
+
+
 /* ───────────────────────────────────────────────────────────
    Firestore: fleteros + viajes (con cache por rango)
 ─────────────────────────────────────────────────────────── */
@@ -123,17 +213,25 @@ async function loadFleteros() {
 }
 
 const RANGE_CACHE = new Map(); // key: `${dni}|${start}|${end}` → [viajes]
-async function viajesEnRango(dni, start, end) {
-    const key = `${dni}|${start}|${end}`;
-    if (RANGE_CACHE.has(key)) return RANGE_CACHE.get(key);
+async function viajesEnRango(dni, start, end, cutoffISO = null) {
+    const cacheKey = `${dni}|${start}|${end}|${cutoffISO ? cutoffISO.slice(0, 16) : "all"}`;
+    if (RANGE_CACHE.has(cacheKey)) return RANGE_CACHE.get(cacheKey);
 
     const ref = collection(db, "viajes", dni, "items");
     const qy = query(ref, where("fecha", ">=", start), where("fecha", "<=", end), orderBy("fecha"));
     const snap = await getDocs(qy);
-    const arr = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    RANGE_CACHE.set(key, arr);
+    let arr = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // ⏱️ En tiempo real: solo los viajes con when <= corte
+    if (cutoffISO) {
+        const cut = Date.parse(cutoffISO);
+        arr = arr.filter(v => whenMillis(v) <= cut);
+    }
+
+    RANGE_CACHE.set(cacheKey, arr);
     return arr;
 }
+
 
 function totalBruto(viajes = []) {
     let t = 0;
@@ -143,13 +241,15 @@ function totalBruto(viajes = []) {
     }
     return t;
 }
+
 function computeWithFee(gross, feePct) {
     const g = Number(gross) || 0;
-    const f = Number(feePct) || 0;
-    const feeAmount = Math.round(g * f / 100);
-    const net = g - feeAmount;
+    const f = Number(feePct) || 0; // % que cobra el fletero (ej: 75)
+    const net = Math.round(g * f / 100);   // lo que cobra el fletero
+    const feeAmount = g - net;             // diferencia (para info)
     return { gross: g, feePct: f, feeAmount, net };
 }
+
 
 /* ───────────────────────────────────────────────────────────
    Firestore: Ajustes por período (persistentes)
@@ -179,17 +279,22 @@ async function fetchAjustesFor(dni, d = new Date()) {
     return res;
 }
 
-async function addAjuste({ dni, scope, baseDate, monto, motivo, by }) {
-    const ref = collection(db, "ajustes", String(dni), "items");
+async function addAjuste({ dni, scope, baseDate, monto, motivo, by, opId }) {
+    const ref = doc(collection(db, "ajustes", String(dni), "items"),
+        opId || (crypto?.randomUUID?.() || String(Date.now())));
+
     const payload = {
-        scope,                                     // 'week'|'month'
+        scope,
         periodKey: scope === "week" ? weekKey(baseDate) : monthKey(baseDate),
         monto: Number(monto) || 0,
         motivo: (motivo || "-").trim(),
         by: by || (findName(dni) || ""),
-        ts: Date.now()
+        ts: Date.now(),
     };
-    await addDoc(ref, payload);
+
+    // Idempotente: si se vuelve a intentar con el mismo opId, se sobre-escribe
+    await setDoc(ref, payload, { merge: false });
+
     // invalidar cache de ese período
     const wk = weekKey(baseDate), mk = monthKey(baseDate);
     AJ_CACHE.delete(`${dni}|${wk}|${mk}`);
@@ -210,8 +315,8 @@ async function sumsForOne(dni, d = new Date()) {
 
     const w = weekRange(d), m = monthRange(d);
     const [vw, vm, aj] = await Promise.all([
-        viajesEnRango(dni, w.start, w.end),
-        viajesEnRango(dni, m.start, m.end),
+        viajesEnRango(dni, w.start, w.end, cutoffISOForRange(w)),
+        viajesEnRango(dni, m.start, m.end, cutoffISOForRange(m)),
         fetchAjustesFor(dni, d)
     ]);
 
@@ -224,40 +329,51 @@ async function sumsForOne(dni, d = new Date()) {
     };
 }
 
+
 async function sumsForGeneral(d = new Date()) {
     const w = weekRange(d), m = monthRange(d);
+    const cutW = cutoffISOForRange(w);
+    const cutM = cutoffISOForRange(m);
 
     let wGross = 0, wNet = 0, wCount = 0;
     let mGross = 0, mNet = 0, mCount = 0;
-    const ajWeek = [], ajMonth = [];
+
+    const rowsWeek = [];
 
     for (const f of FLETEROS) {
-        const [vw, vm, aj] = await Promise.all([
-            viajesEnRango(f.dni, w.start, w.end),
-            viajesEnRango(f.dni, m.start, m.end),
-            fetchAjustesFor(f.dni, d)
+        const [vw, vm] = await Promise.all([
+            viajesEnRango(f.dni, w.start, w.end, cutW),
+            viajesEnRango(f.dni, m.start, m.end, cutM),
         ]);
 
+        const fee = Number(f.fee) || 0;
         const gW = totalBruto(vw), gM = totalBruto(vm);
-        const cW = computeWithFee(gW, Number(f.fee) || 0);
-        const cM = computeWithFee(gM, Number(f.fee) || 0);
+        const cW = computeWithFee(gW, fee);
+        const cM = computeWithFee(gM, fee);
+
+        rowsWeek.push({
+            dni: f.dni,
+            name: f.name || f.dni,
+            colorHex: f.colorHex || "#999999",
+            count: vw.length,
+            gross: cW.gross,
+            net: cW.net,
+        });
 
         wGross += cW.gross; wNet += cW.net; wCount += vw.length;
         mGross += cM.gross; mNet += cM.net; mCount += vm.length;
-
-        // Agrego ajustes (marco el nombre para mostrar)
-        ajWeek.push(...aj.week.map(x => ({ ...x, by: x.by || f.name, __dni: f.dni })));
-        ajMonth.push(...aj.month.map(x => ({ ...x, by: x.by || f.name, __dni: f.dni })));
     }
 
-    ajWeek.sort((a, b) => (a.ts || 0) - (b.ts || 0));
-    ajMonth.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+    // ordená por neto desc (podés cambiar a gross o count si preferís)
+    rowsWeek.sort((a, b) => b.net - a.net);
 
     return {
-        week: { label: labelRange("week", w.start, w.end), gross: wGross, feePct: null, feeAmount: null, net: wNet, count: wCount, ajustes: ajWeek },
-        month: { label: labelRange("month", m.start, m.end), gross: mGross, feePct: null, feeAmount: null, net: mNet, count: mCount, ajustes: ajMonth }
+        week: { label: labelRange("week", w.start, w.end), gross: wGross, net: wNet, count: wCount, rows: rowsWeek },
+        month: { label: labelRange("month", m.start, m.end), gross: mGross, net: mNet, count: mCount }
     };
 }
+
+
 
 /* ───────────────────────────────────────────────────────────
    UI: Tabs + Tarjetas
@@ -351,19 +467,28 @@ function renderCards(dni, sums, accentColor = "#0d6efd") {
     if (!box) return;
 
     const isGen = (dni === KEY_GENERAL);
-    const allowDelete = !isGen && isAdmin();
-    const weekAdjList = (sums.week.ajustes || []).map(x => ({ ...x, by: x.by || findName(dni) }));
-    const monthAdjList = (sums.month.ajustes || []).map(x => ({ ...x, by: x.by || findName(dni) }));
+    if (isGen) {            // ⟵ acá dibujamos la tabla linda
+        renderGeneralTable(sums);
+        return;
+    }
 
-    const wAdj = weekAdjList.reduce((a, x) => a + (Number(x.monto) || 0), 0);
-    const mAdj = monthAdjList.reduce((a, x) => a + (Number(x.monto) || 0), 0);
+    const showAdj = !isGen;               // ⟵ Solo mostramos ajustes si NO es General
+    const allowDelete = showAdj && isAdmin();
 
+    const weekAdjList = showAdj ? (sums.week.ajustes || []).map(x => ({ ...x, by: x.by || findName(dni) })) : [];
+    const monthAdjList = showAdj ? (sums.month.ajustes || []).map(x => ({ ...x, by: x.by || findName(dni) })) : [];
+
+    const wAdj = showAdj ? weekAdjList.reduce((a, x) => a + (Number(x.monto) || 0), 0) : 0;
+    const mAdj = showAdj ? monthAdjList.reduce((a, x) => a + (Number(x.monto) || 0), 0) : 0;
+
+    // En "General" weekFinal/monthFinal == neto (sin ajustes)
     const weekFinal = (sums.week.net || 0) + wAdj;
     const monthFinal = (sums.month.net || 0) + mAdj;
 
+    //Comision por si se quiere usar 
     const feeLine = (obj) => obj.feePct == null
         ? ""
-        : `<div class="small text-muted">Comisión ${obj.feePct}%: -$${money(obj.feeAmount || 0)}</div>`;
+        : `${obj.feePct}%`;
 
     const weekLabel = sums.week.label;
     const monthLabel = sums.month.label;
@@ -372,16 +497,17 @@ function renderCards(dni, sums, accentColor = "#0d6efd") {
     <div class="summary-card sd-card" style="--card-accent:${accentColor}">
       ${cardHeader(weekLabel)}
       <div class="mt-3">
-        <div><strong>Total (sin comisión):</strong> $${money(sums.week.gross || 0)}</div>
-        ${feeLine(sums.week)}
-        <div><strong>Subtotal (con comisión):</strong> $${money(sums.week.net || 0)}</div>
-        <div class="mt-2"><span class="fw-semibold">Ajustes:</span>
-          ${conceptsList(weekAdjList, { dni, scope: "week", periodoLabel: weekLabel, allowDelete })}
-        </div>
-        <p class="sd-amount semana mt-3"></p>
         <p>Cantidad de viajes: <strong>${sums.week.count}</strong></p>
+        <div><strong>Total bruto:</strong> $${money(sums.week.gross || 0)}</div>
+        <div><strong>Total neto:</strong> $${money(sums.week.net || 0)}</div>
+        ${showAdj ? `
+          <div class="mt-2"><span class="fw-semibold">Ajustes:</span>
+            ${conceptsList(weekAdjList, { dni, scope: "week", periodoLabel: weekLabel, allowDelete })}
+          </div>` : ``}
+        <p class="sd-amount semana mt-3"></p>
+        
       </div>
-      ${!isGen && isAdmin() ? `
+      ${showAdj && isAdmin() ? `
         <div class="sd-actions mt-2">
           <button class="btn btn-success btn-sumar-semana">Sumar</button>
           <button class="btn btn-outline-danger btn-descontar-semana">Descontar</button>
@@ -394,13 +520,14 @@ function renderCards(dni, sums, accentColor = "#0d6efd") {
         <div><strong>Total (sin comisión):</strong> $${money(sums.month.gross || 0)}</div>
         ${feeLine(sums.month)}
         <div><strong>Subtotal (con comisión):</strong> $${money(sums.month.net || 0)}</div>
-        <div class="mt-2"><span class="fw-semibold">Ajustes:</span>
-          ${conceptsList(monthAdjList, { dni, scope: "month", periodoLabel: monthLabel, allowDelete })}
-        </div>
+        ${showAdj ? `
+          <div class="mt-2"><span class="fw-semibold">Ajustes:</span>
+            ${conceptsList(monthAdjList, { dni, scope: "month", periodoLabel: monthLabel, allowDelete })}
+          </div>` : ``}
         <p class="sd-amount mes mt-3"></p>
         <p>Cantidad de viajes: <strong>${sums.month.count}</strong></p>
       </div>
-      ${!isGen && isAdmin() ? `
+      ${showAdj && isAdmin() ? `
         <div class="sd-actions mt-2">
           <button class="btn btn-success btn-sumar-mes">Sumar</button>
           <button class="btn btn-outline-danger btn-descontar-mes">Descontar</button>
@@ -419,6 +546,9 @@ function renderCards(dni, sums, accentColor = "#0d6efd") {
    Interacciones tarjetas (sumar / descontar / eliminar)
 ─────────────────────────────────────────────────────────── */
 function wireCardActions(dni) {
+    let _saveHandlerRef = null;
+    let _currentOpId = null;
+
     const box = $("#cardsContainer");
     if (!box) return;
 
@@ -440,17 +570,19 @@ function wireCardActions(dni) {
         let scope = null, plus = true;
         if (addW || subW) { scope = "week"; plus = !!addW; }
         if (addM || subM) { scope = "month"; plus = !!addM; }
-        if (!scope) return;
+        if (!scope || !bsModal) return;
 
-        if (!bsModal) return;
-
-        // Título, preset y bloqueo del "." y ","
+        // Estado inicial del modal
         mScope.value = scope;
         mMonto.value = "";
         mMotivo.value = "";
         mMonto.dataset.sign = plus ? "1" : "-1";
         mTitle.textContent = plus ? "Sumar" : "Descontar";
 
+        // opId único por APERTURA del modal (idempotencia en Firestore)
+        _currentOpId = (crypto?.randomUUID?.() || `${Date.now()}-${Math.floor(Math.random() * 1e6)}`);
+
+        // Bloqueo de ".", "," y normalización del input
         const keydownBlock = (e) => { if (e.key === "." || e.key === ",") e.preventDefault(); };
         const inputClean = () => {
             const cleaned = mMonto.value.replace(/[.,]/g, "");
@@ -459,13 +591,18 @@ function wireCardActions(dni) {
         mMonto.addEventListener("keydown", keydownBlock);
         mMonto.addEventListener("input", inputClean);
 
-        const onSave = async () => {
+        // Evitar listeners acumulados
+        if (_saveHandlerRef) mSave.removeEventListener("click", _saveHandlerRef);
+
+        _saveHandlerRef = async (e) => {
+            e.preventDefault();
             const sign = Number(mMonto.dataset.sign) || 1;
             const raw = toNum(mMonto.value);
-            if (!raw) return;
+            if (!raw || mSave.dataset.busy === "1") return; // guardas anti doble click
 
-            // evitar doble click
+            mSave.dataset.busy = "1";
             mSave.disabled = true;
+
             try {
                 await addAjuste({
                     dni,
@@ -473,7 +610,8 @@ function wireCardActions(dni) {
                     baseDate: CURRENT_DATE,
                     monto: raw * sign,
                     motivo: mMotivo.value,
-                    by: first(findName(dni))
+                    by: first(findName(dni)),
+                    opId: _currentOpId, // ⟵ clave para NO duplicar en Firestore
                 });
                 bsModal.hide();
                 await setPersona(dni);
@@ -482,12 +620,26 @@ function wireCardActions(dni) {
                 alert("No se pudo guardar el ajuste. Intentá de nuevo.");
             } finally {
                 mSave.disabled = false;
-                mMonto.removeEventListener("keydown", keydownBlock);
-                mMonto.removeEventListener("input", inputClean);
+                mSave.dataset.busy = "";
             }
         };
 
-        mSave.addEventListener("click", onSave, { once: true });
+        mSave.addEventListener("click", _saveHandlerRef);
+
+        // Enter dentro del monto → click en Guardar (sin doble-submit)
+        const enterHandler = (e) => { if (e.key === "Enter") { e.preventDefault(); mSave.click(); } };
+        mMonto.addEventListener("keydown", enterHandler);
+
+        // Limpieza al cerrar modal (evita acumulaciones entre aperturas)
+        modal.addEventListener("hidden.bs.modal", () => {
+            if (_saveHandlerRef) mSave.removeEventListener("click", _saveHandlerRef);
+            mMonto.removeEventListener("keydown", keydownBlock);
+            mMonto.removeEventListener("input", inputClean);
+            mMonto.removeEventListener("keydown", enterHandler);
+            _saveHandlerRef = null;
+            _currentOpId = null;
+        }, { once: true });
+
         bsModal.show();
     };
 
@@ -496,7 +648,6 @@ function wireCardActions(dni) {
         const btn = ev.target.closest(".aj-del");
         if (!btn) return;
 
-        // popular modal
         $("#delAjPersona").textContent = btn.dataset.persona || "-";
         $("#delAjScope").textContent = btn.dataset.scope === "week" ? "Semana" : "Mes";
         $("#delAjPeriodo").textContent = btn.dataset.periodo || "-";
@@ -508,6 +659,7 @@ function wireCardActions(dni) {
         modalEliminarAjuste?.show();
     });
 }
+
 
 // Confirmación del modal “Eliminar ajuste”
 async function onConfirmDeleteAjuste(ev) {
@@ -619,7 +771,8 @@ async function boot() {
 
     const setAndRefresh = (dateObj) => {
         CURRENT_DATE = dateObj;
-        const s = ymd(dateObj);
+        const s = ymd(dateObj); 
+        document.body.dataset.currentYmd = s;  
         if (inp) inp.value = s;
         updateRangeChipLabel(s);
         setPersona(CURRENT);
@@ -660,3 +813,79 @@ function domReady(cb) {
 }
 document.addEventListener("auth:ready", () => domReady(boot), { once: true });
 if (window.currentUser) domReady(boot);
+
+function renderGeneralTable(sums) {
+    const box = $("#cardsContainer");
+    if (!box) return;
+
+    const week = sums.week;
+    const month = sums.month;
+    const firstName = (s = "") => (s || "").trim().split(/\s+/)[0] || "";
+
+    const tableRows = (week.rows || []).map(r => `
+    <tr style="--row-color:${r.colorHex}; background:${softBg(r.colorHex, 0.16)}">
+      <td class="fw-semibold name-cell">
+        <div class="name-content">
+          <span class="cs-dot" style="background:${r.colorHex}"></span>
+          <span class="name-label">${firstName(r.name)}</span>
+        </div>
+      </td>
+      <td class="text-center">${r.count}</td>
+      <td class="text-end">$${money(r.gross)}</td>
+      <td class="text-end">$${money(r.net)}</td>
+    </tr>
+  `).join("");
+
+    // ⬇️ Etiquetas nuevas
+    const weekTitle = weekLabelDynamic(CURRENT_DATE);
+    const monthTitle = monthLabelPretty(CURRENT_DATE);
+
+    box.innerHTML = `
+    <div class="sd-card p-3">
+      ${fancyHeading(weekTitle, "calendar2-week")}
+
+      <div class="table-responsive mt-2">
+        <table class="table table-borderless align-middle sum-table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th class="text-center">Viajes</th>
+              <th class="text-end">Total bruto</th>
+              <th class="text-end">Total neto</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows || `<tr><td colspan="4" class="text-muted">Sin viajes realizados en este período.</td></tr>`}
+          </tbody>
+          <tfoot>
+            <tr class="sum-total-row">
+              <td class="fw-bold">Total</td>
+              <td class="text-center fw-bold">${week.count}</td>
+              <td class="text-end fw-bold">$${money(week.gross)}</td>
+              <td class="text-end fw-bold">$${money(week.net)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="sd-card p-3 mt-3">
+      ${fancyHeading(monthTitle, "calendar2-month")}
+      <div class="row g-3 mt-2">
+        <div class="col-6 col-md">
+          <div class="text-muted small">Viajes</div>
+          <div class="h6 mb-0">${month.count}</div>
+        </div>
+        <div class="col-6 col-md">
+          <div class="text-muted small">Total bruto</div>
+          <div class="h6 mb-0">$${money(month.gross)}</div>
+        </div>
+        <div class="col-12 col-md">
+          <div class="text-muted small">Total neto</div>
+          <div class="display-6 fw-semibold text-success mb-0">$${money(month.net)}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+

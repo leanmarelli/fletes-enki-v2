@@ -1,6 +1,8 @@
 // js/index.js
 import { applyFeatureGates, installActionGuards, isAdmin } from "./gate.js";
 import { db, collection, getDocs } from "./utils.js";
+import { enhanceColorSelect } from "./color-select.js"; 
+
 
 const initials = (name = "") =>
     name.trim().split(/\s+/).slice(0, 2).map(s => s[0]?.toUpperCase() || "").join("");
@@ -17,36 +19,29 @@ const normalize = (s = "") =>
 // ---------------- Tarjeta en el offcanvas ----------------
 function renderFleteroItem({ dni, name, car, colorHex }) {
     const el = document.createElement("a");
-    el.className = "list-group-item list-group-item-action";
+    // usamos flex para alinear puntito + textos
+    el.className = "list-group-item list-group-item-action d-flex align-items-center gap-3";
     el.href = `schedule.html?dni=${encodeURIComponent(dni)}`;
 
-    const avatar = document.createElement("div");
-    avatar.className = "ag-avatar";
-    avatar.textContent = initials(name);
+    // • Dot principal (reemplaza al avatar con iniciales)
+    const lead = document.createElement("span");
+    lead.className = "ag-lead-dot";
+    lead.style.background = colorHex || "#ced4da"; // gris si no hay color
+    el.appendChild(lead);
 
-    const nameRow = document.createElement("div");
-    nameRow.className = "ag-name-row";
+    // Contenido textual
+    const main = document.createElement("div");
 
     const title = document.createElement("div");
     title.className = "ag-name";
     title.textContent = name || "—";
 
-    const dot = document.createElement("span");
-    dot.className = "ag-dot";
-    if (colorHex) dot.style.background = colorHex; else dot.style.visibility = "hidden";
-
-    nameRow.appendChild(title);
-    nameRow.appendChild(dot);
-
     const sub = document.createElement("div");
     sub.className = "ag-sub";
     if (car) sub.textContent = car;
 
-    const main = document.createElement("div");
-    main.appendChild(nameRow);
+    main.appendChild(title);
     if (car) main.appendChild(sub);
-
-    el.appendChild(avatar);
     el.appendChild(main);
 
     // cerrar offcanvas si está abierto
@@ -58,6 +53,7 @@ function renderFleteroItem({ dni, name, car, colorHex }) {
     el.setAttribute("tabindex", "0");
     return el;
 }
+
 
 // ---------------- Datos ----------------
 async function fetchFleteros() {
@@ -113,39 +109,28 @@ function initMenuAgendas() {
 async function hydrateSelectFletero() {
     const select = document.getElementById("fletero");
     if (!select) return;
+    if (!IS_INDEX) return; // solo index redirige
 
-    // Si no estamos en index, NO tocamos este select para evitar conflictos en new-trip
-    if (!IS_INDEX) return;
-
-    select.innerHTML = `<option value="">Elegir persona</option>`;
     try {
         const data = await fetchFleteros();
-        data.forEach(x => {
-            const op = document.createElement("option");
-            op.value = x.dni;
-            op.textContent = x.car ? `${x.name} (${x.car})` : x.name;
-            select.appendChild(op);
+        enhanceColorSelect(select, data, {
+            placeholder: "Elegir persona",
+            onChange: (dni) => { if (dni) location.href = `schedule.html?dni=${encodeURIComponent(dni)}`; }
         });
-
-        // ⬇️ Redirección SOLO en index
-        select.addEventListener("change", (e) => {
-            const dni = e.target.value;
-            if (dni) location.href = `schedule.html?dni=${encodeURIComponent(dni)}`;
-        });
-
     } catch (e) {
         console.error("No se pudo cargar #fletero:", e);
     }
 }
 
 
+
 // ---------------- Boot ----------------
 function boot() {
     applyFeatureGates();
     installActionGuards();
+    initMenuAgendas();
 
     if (IS_INDEX) {
-        initMenuAgendas();
         hydrateSelectFletero();
     }
 }
