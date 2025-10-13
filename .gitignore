@@ -1,0 +1,7 @@
+# Node / tooling
+node_modules/
+package.json
+package-lock.json
+
+# Claves/respaldos
+firebase/
