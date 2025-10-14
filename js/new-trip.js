@@ -59,12 +59,15 @@ document.getElementById("new-trip-form")?.addEventListener("input", markDirty);
 
 // ----------------------- armar href para agenda -----------------------
 function setAgendaHref(linkEl, { dni, date, fallbackPath = "schedule.html" }) {
-    const baseUrl = RETURN_TO ? new URL(RETURN_TO, location.origin)
-        : new URL(fallbackPath, location.origin);
-    if (dni) baseUrl.searchParams.set("dni", dni);
-    if (date) baseUrl.searchParams.set("date", date);
-    linkEl.href = baseUrl.pathname + "?" + baseUrl.searchParams.toString();
+    // ⚠️ usar document.baseURI o location.href, no location.origin
+    const url = new URL(fallbackPath.replace(/^\/+/, ""), document.baseURI);
+    if (dni) url.searchParams.set("dni", dni);
+    if (date) url.searchParams.set("date", date);
+
+    // podés usar url.toString(), o solo path+query si preferís
+    linkEl.href = url.pathname + "?" + url.searchParams.toString();
 }
+
 
 // ----------------------- helpers de fecha -----------------------
 function ymdOf(d) {
