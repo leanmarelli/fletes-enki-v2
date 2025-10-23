@@ -1,140 +1,66 @@
 // netlify/functions/send-email.js
 exports.handler = async (event) => {
-  // Método permitido
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
-  }
+  const ALLOWED_ORIGINS = [
+    'https://www.fletesenki.com.ar',
+    'https://fletes-enki.netlify.app',
+  ];
+  const origin = event.headers.origin || '';
+  const cors = {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : 'https://www.fletesenki.com.ar',
+    'Access-Control-Allow-Methods': 'POST,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type,X-Mail-Token',
+    'Vary': 'Origin',
+  };
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: cors };
+  if (event.httpMethod !== 'POST') return { statusCode: 405, headers: cors, body: 'Method Not Allowed' };
+  if ((event.headers['x-mail-token'] || '') !== (process.env.MAIL_TOKEN || ''))
+    return { statusCode: 401, headers: cors, body: 'Unauthorized' };
 
-  // Normalización fuerte de la API key
   const raw = process.env.RESEND_API_KEY || '';
-  const cleaned = raw
-    .normalize('NFKC')
-    .replace(/^['"]|['"]$/g, '')           // quita comillas pegadas
-    .replace(/[\u200B-\u200D\uFEFF]/g, '') // quita ZWSP/BOM
-    .trim();
-
-  console.log('KEY lens', { raw: raw.length, cleaned: cleaned.length });
-  if (!/^re_[A-Za-z0-9_-]+$/.test(cleaned)) {
-    console.error('Formato RESEND_API_KEY sospechoso o vacío');
-    return { statusCode: 500, body: 'Bad RESEND_API_KEY' };
-  }
+  const cleaned = raw.normalize('NFKC').replace(/^['"]|['"]$/g, '').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+  if (!/^re_[A-Za-z0-9_-]+$/.test(cleaned)) return { statusCode: 500, headers: cors, body: 'Bad RESEND_API_KEY' };
 
   try {
     const { viaje, fletero, tipo } = JSON.parse(event.body || '{}');
 
-    // Debug mínimo
-    console.log('=== INICIO DEBUG ===');
-    console.log('Fletero:', { name: fletero?.name, mail: fletero?.mail, email: fletero?.email, dni: fletero?.dni });
-    console.log('Tipo:', tipo);
+    // 🔎 Logs de mails del fletero
+    console.log('Fletero emails → mail:', fletero?.mail, ' email:', fletero?.email);
 
-    const c = viaje?.cliente || {};
-    const a = viaje?.ayudantes || {};
-
+    const c = viaje?.cliente || {}; const a = viaje?.ayudantes || {};
     const precioServicio = Number(c.precioServicio || 0);
     const cantAyudantes = Number(a.cantidad || 0);
     const precioAyudante = Number(a.precio || 0);
-    const totalAyudantes = cantAyudantes * precioAyudante;
-    const totalCobrar = precioServicio + totalAyudantes;
+    const totalCobrar = precioServicio + cantAyudantes * precioAyudante;
 
-    const asunto =
-      tipo === 'nuevo'
-        ? `Nuevo viaje asignado - ${c.nombre || 'Cliente'} - ${c.fecha || ''}`
-        : `Viaje modificado - ${c.nombre || 'Cliente'} - ${c.fecha || ''}`;
+    const asunto = tipo === 'nuevo'
+      ? `Nuevo viaje asignado - ${c.nombre || 'Cliente'} - ${c.fecha || ''}`
+      : `Viaje modificado - ${c.nombre || 'Cliente'} - ${c.fecha || ''}`;
 
-    const cuerpo = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #198754;">Hola ${fletero?.name || 'Fletero'},</h2>
-      <p>Se te ha ${tipo === 'nuevo' ? 'asignado un nuevo' : 'modificado un'} viaje:</p>
+    const cuerpo = `...`; // tu HTML igual que ahora
 
-      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-        <h3 style="color: #135322; margin-top: 0;">📋 CLIENTE</h3>
-        <p><strong>Nombre:</strong> ${c.nombre || '-'}</p>
-        <p><strong>Teléfono:</strong> ${c.telefono || '-'}</p>
-      </div>
-
-      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-        <h3 style="color: #135322; margin-top: 0;">📅 SERVICIO</h3>
-        <p><strong>Tipo:</strong> ${c.tipoServicio || '-'}</p>
-        <p><strong>Fecha:</strong> ${c.fecha || '-'}</p>
-        <p><strong>Hora:</strong> ${c.horario || '-'}</p>
-      </div>
-
-      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-        <h3 style="color: #135322; margin-top: 0;">📍 CARGA</h3>
-        <p><strong>Dirección:</strong> ${c.direccionCarga || '-'}</p>
-        <p><strong>Localidad:</strong> ${c.localidadCarga || '-'}</p>
-      </div>
-
-      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-        <h3 style="color: #135322; margin-top: 0;">📦 DETALLE</h3>
-        <p>${c.detalle || '-'}</p>
-      </div>
-
-      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-        <h3 style="color: #135322; margin-top: 0;">📍 DESCARGA</h3>
-        <p><strong>Dirección:</strong> ${c.direccionDescarga || '-'}</p>
-        <p><strong>Localidad:</strong> ${c.localidadDescarga || '-'}</p>
-      </div>
-
-      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-        <h3 style="color: #135322; margin-top: 0;">💰 PRECIO</h3>
-        <p><strong>Servicio:</strong> $${precioServicio.toLocaleString('es-AR')}</p>
-        ${cantAyudantes > 0 ? `<p><strong>Ayudantes:</strong> ${cantAyudantes} x $${precioAyudante.toLocaleString('es-AR')}</p>` : ''}
-        <p><strong>Peajes:</strong> ${c.peajes || '-'}</p>
-        ${cantAyudantes > 0 ? `<hr style="border: 1px solid #dee2e6;">` : ''}
-        <p style="font-size: 18px;"><strong>Total a cobrar: $${totalCobrar.toLocaleString('es-AR')}</strong></p>
-      </div>
-
-      <hr style="border: 1px solid #dee2e6; margin: 20px 0;">
-      <p style="color: #6c757d; font-size: 14px; text-align: center;">
-        Gestión Fletes Enki<br>
-        <a href="https://fletes-enki.netlify.app/schedule.html?dni=${fletero?.dni || ''}&date=${c.fecha || ''}" style="color: #198754;">Ver en mi agenda</a>
-      </p>
-    </div>
-    `;
-
-    // Destino: usa mail/email y fallback a tu inbox
-    const emailDestino = 'leanmarelli17@gmail.com';
-    console.log('Email destino:', emailDestino);
+    // 🔧 Modo prueba: forzar destino a tu casilla
+    const emailDestino = 'lmarelli17@gmail.com';
 
     const payload = {
       from: 'notificaciones@fletesenki.com.ar',
       to: [emailDestino],
       subject: asunto,
       html: cuerpo,
-      reply_to: 'lmarelli17@gmail.com', 
+      reply_to: 'marellilean@gmail.com',
     };
 
-    console.log('Llamando a Resend…');
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer re_Ahb4whgL_DMKYJiV3uZGFxuZUMMA9sMEC`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
+      headers: { Authorization: `Bearer ${cleaned}`, 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(payload),
     });
 
     const text = await resp.text();
-    console.log('Resend status:', resp.status);
-    console.log('Resend body:', text);
+    if (!resp.ok) return { statusCode: resp.status, headers: cors, body: text };
 
-    if (!resp.ok) {
-      // Propaga el status para ver 401/422/4xx en el cliente
-      return { statusCode: resp.status, body: text };
-    }
-
-    const data = JSON.parse(text);
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ success: true, id: data.id || null }),
-    };
+    const data = JSON.parse(text || '{}');
+    return { statusCode: 200, headers: cors, body: JSON.stringify({ success: true, id: data.id || null }) };
   } catch (err) {
-    console.error('❌ ERROR COMPLETO:', err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ success: false, error: String(err?.message || err) }),
-    };
+    return { statusCode: 500, headers: cors, body: JSON.stringify({ success: false, error: String(err?.message || err) }) };
   }
 };

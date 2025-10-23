@@ -1,23 +1,22 @@
-// js/email-sender.js
+// /js/email-sender.js (Ferozo)
+const SEND_EMAIL_URL = 'https://fletes-enki.netlify.app/.netlify/functions/send-email';
+const MAIL_TOKEN_PUBLIC = '8d6c2a5f0c2a4c86b5b0a9b3c3f1e7d49e2f6c1a0f8b7c4d2e9a1b3c5d7e9f0';
+
 export async function enviarEmailViaje(viaje, fletero, tipo = 'nuevo') {
-    try {
-        const response = await fetch('/.netlify/functions/send-email', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ viaje, fletero, tipo })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Error ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log('✅ Email enviado correctamente:', data);
-        return true;
-    } catch (error) {
-        console.error('❌ Error al enviar email:', error);
+    const res = await fetch(SEND_EMAIL_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Mail-Token': MAIL_TOKEN_PUBLIC
+        },
+        body: JSON.stringify({ viaje, fletero, tipo }),
+    });
+    if (!res.ok) {
+        const err = await res.text().catch(() => '');
+        console.error('Email fail', res.status, err);
         return false;
     }
+    const data = await res.json().catch(() => ({}));
+    console.log('✔ Email enviado', data);
+    return true;
 }
