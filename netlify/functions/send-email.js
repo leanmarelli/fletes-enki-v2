@@ -46,56 +46,58 @@ exports.handler = async (event) => {
         : `Viaje modificado - ${c.nombre || 'Cliente'} - ${c.fecha || ''}`;
 
     const cuerpo = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #198754;">Hola ${fletero?.name || 'Fletero'},</h2>
-      <p>Se te ha ${tipo === 'nuevo' ? 'asignado un nuevo' : 'modificado un'} viaje:</p>
+  <div style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#333;">
+    
+    <!-- Encabezado -->
+    <h2 style="color:#198754;margin-bottom:5px;">
+      ${tipo === 'nuevo' ? '📢 Nuevo viaje asignado' : '✏️ Viaje modificado'}
+    </h2>
+    <p style="margin:0 0 20px 0;">
+      Hola <strong>${fletero?.name || 'Fletero'}</strong>, se te ha 
+      ${tipo === 'nuevo' ? 'asignado un nuevo' : 'modificado un'} viaje.
+    </p>
 
-      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-        <h3 style="color: #135322; margin-top: 0;">📋 CLIENTE</h3>
-        <p><strong>Nombre:</strong> ${c.nombre || '-'}</p>
-        <p><strong>Teléfono:</strong> ${c.telefono || '-'}</p>
-      </div>
+    <!-- Tabla de información -->
+    <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse;background:#fafafa;">
+      <tr style="background:#f0f2f2;"><td colspan="2"><strong>📋 CLIENTE</strong></td></tr>
+      <tr><td style="width:120px;">Nombre:</td><td>${c.nombre || '-'}</td></tr>
+      <tr><td>Teléfono:</td><td>${c.telefono || '-'}</td></tr>
 
-      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-        <h3 style="color: #135322; margin-top: 0;">📅 SERVICIO</h3>
-        <p><strong>Tipo:</strong> ${c.tipoServicio || '-'}</p>
-        <p><strong>Fecha:</strong> ${c.fecha || '-'}</p>
-        <p><strong>Hora:</strong> ${c.horario || '-'}</p>
-      </div>
+      <tr style="background:#f0f2f2;"><td colspan="2"><strong>📅 SERVICIO</strong></td></tr>
+      <tr><td>Tipo:</td><td>${c.tipoServicio || '-'}</td></tr>
+      <tr><td>Fecha:</td><td>${c.fecha || '-'}</td></tr>
+      <tr><td>Hora:</td><td>${c.horario || '-'}</td></tr>
 
-      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-        <h3 style="color: #135322; margin-top: 0;">📍 CARGA</h3>
-        <p><strong>Dirección:</strong> ${c.direccionCarga || '-'}</p>
-        <p><strong>Localidad:</strong> ${c.localidadCarga || '-'}</p>
-      </div>
+      <tr style="background:#f0f2f2;"><td colspan="2"><strong>📍 CARGA</strong></td></tr>
+      <tr><td>Dirección:</td><td>${c.direccionCarga || '-'}</td></tr>
+      <tr><td>Localidad:</td><td>${c.localidadCarga || '-'}</td></tr>
 
-      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-        <h3 style="color: #135322; margin-top: 0;">📦 DETALLE</h3>
-        <p>${c.detalle || '-'}</p>
-      </div>
+      <tr style="background:#f0f2f2;"><td colspan="2"><strong>📍 DESCARGA</strong></td></tr>
+      <tr><td>Dirección:</td><td>${c.direccionDescarga || '-'}</td></tr>
+      <tr><td>Localidad:</td><td>${c.localidadDescarga || '-'}</td></tr>
 
-      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-        <h3 style="color: #135322; margin-top: 0;">📍 DESCARGA</h3>
-        <p><strong>Dirección:</strong> ${c.direccionDescarga || '-'}</p>
-        <p><strong>Localidad:</strong> ${c.localidadDescarga || '-'}</p>
-      </div>
+      <tr style="background:#f0f2f2;"><td colspan="2"><strong>📦 DETALLE</strong></td></tr>
+      <tr><td colspan="2">${c.detalle || '-'}</td></tr>
 
-      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-        <h3 style="color: #135322; margin-top: 0;">💰 PRECIO</h3>
-        <p><strong>Servicio:</strong> $${precioServicio.toLocaleString('es-AR')}</p>
-        ${cantAyudantes > 0 ? `<p><strong>Ayudantes:</strong> ${cantAyudantes} x $${precioAyudante.toLocaleString('es-AR')}</p>` : ''}
-        <p><strong>Peajes:</strong> ${c.peajes || '-'}</p>
-        ${cantAyudantes > 0 ? `<hr style="border: 1px solid #dee2e6;">` : ''}
-        <p style="font-size: 18px;"><strong>Total a cobrar: $${totalCobrar.toLocaleString('es-AR')}</strong></p>
-      </div>
+      <tr style="background:#f0f2f2;"><td colspan="2"><strong>💰 PRECIO</strong></td></tr>
+      <tr><td>Servicio:</td><td>$${precioServicio.toLocaleString('es-AR')}</td></tr>
+      ${cantAyudantes > 0 ? `<tr><td>Ayudantes:</td><td>${cantAyudantes} × $${precioAyudante.toLocaleString('es-AR')}</td></tr>` : ''}
+      <tr><td>Peajes:</td><td>${c.peajes || '-'}</td></tr>
+      <tr><td><strong>Total:</strong></td><td><strong>$${totalCobrar.toLocaleString('es-AR')}</strong></td></tr>
+    </table>
 
-      <hr style="border: 1px solid #dee2e6; margin: 20px 0;">
-      <p style="color: #6c757d; font-size: 14px; text-align: center;">
-        Gestión Fletes Enki<br>
-        <a href="https://fletesenki.com.ar/schedule.html?dni=${fletero?.dni || ''}&date=${c.fecha || ''}" style="color: #198754;">Ver en mi agenda</a>
-      </p>
-    </div>
-    `;
+    <!-- Footer -->
+    <p style="margin-top:25px;font-size:13px;color:#777;text-align:center;">
+      <a href="https://fletesenki.com.ar/agenda.html?dni=${fletero?.dni || ''}&date=${c.fecha || ''}" 
+         style="color:#198754;text-decoration:none;">📅 Ver en mi agenda</a>
+      <br><br>
+      — Gestión Fletes Enki —
+    </p>
+  </div>
+`;
+
+
+
 
     // Modo prueba: forzar destino a tu casilla
     const emailDestino = 'lmarelli17@gmail.com'
