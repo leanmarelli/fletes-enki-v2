@@ -1,27 +1,27 @@
 const fetch = require('node-fetch');
 
 exports.handler = async (event) => {
-    if (event.httpMethod !== 'POST') {
-        return { statusCode: 405, body: 'Method Not Allowed' };
-    }
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, body: 'Method Not Allowed' };
+  }
 
-    try {
-        const { viaje, fletero, tipo } = JSON.parse(event.body);
+  try {
+    const { viaje, fletero, tipo } = JSON.parse(event.body);
 
-        const c = viaje.cliente || {};
-        const a = viaje.ayudantes || {};
+    const c = viaje.cliente || {};
+    const a = viaje.ayudantes || {};
 
-        const precioServicio = c.precioServicio || 0;
-        const cantAyudantes = a.cantidad || 0;
-        const precioAyudante = a.precio || 0;
-        const totalAyudantes = cantAyudantes * precioAyudante;
-        const totalCobrar = precioServicio + totalAyudantes;
+    const precioServicio = c.precioServicio || 0;
+    const cantAyudantes = a.cantidad || 0;
+    const precioAyudante = a.precio || 0;
+    const totalAyudantes = cantAyudantes * precioAyudante;
+    const totalCobrar = precioServicio + totalAyudantes;
 
-        const asunto = tipo === 'nuevo'
-            ? `Nuevo viaje asignado - ${c.nombre || 'Cliente'} - ${c.fecha || ''}`
-            : `Viaje modificado - ${c.nombre || 'Cliente'} - ${c.fecha || ''}`;
+    const asunto = tipo === 'nuevo'
+      ? `Nuevo viaje asignado - ${c.nombre || 'Cliente'} - ${c.fecha || ''}`
+      : `Viaje modificado - ${c.nombre || 'Cliente'} - ${c.fecha || ''}`;
 
-        const cuerpo = `
+    const cuerpo = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #198754;">Hola ${fletero.name || 'Fletero'},</h2>
       
@@ -74,36 +74,36 @@ exports.handler = async (event) => {
     </div>
     `;
 
-        const response = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                from: 'Fletes Enki <onboarding@resend.dev>',
-                to: fletero.email || 'leanmarelli17@gmail.com',
-                subject: asunto,
-                html: cuerpo,
-            })
-        });
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: 'Fletes Enki <onboarding@resend.dev>',
+        to: 'leanmarelli17@gmail.com', //fletero.email || 
+        subject: asunto,
+        html: cuerpo,
+      })
+    });
 
-        if (!response.ok) {
-            throw new Error(`Resend error: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        return {
-            statusCode: 200,
-            body: JSON.stringify({ success: true, id: data.id })
-        };
-
-    } catch (error) {
-        console.error('Error:', error);
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ success: false, error: error.message })
-        };
+    if (!response.ok) {
+      throw new Error(`Resend error: ${response.status}`);
     }
+
+    const data = await response.json();
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ success: true, id: data.id })
+    };
+
+  } catch (error) {
+    console.error('Error:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ success: false, error: error.message })
+    };
+  }
 };
