@@ -100,7 +100,8 @@ exports.handler = async (event) => {
 
 
     // Modo prueba: forzar destino a tu casilla
-    const emailDestino = 'lmarelli17@gmail.com'
+    const emailDestino = fletero?.mail?.trim() || fletero?.email?.trim() || 'marellilean@gmail.com';
+
 
     const payload = {
       from: 'Fletes Enki <notificaciones@fletesenki.com.ar>',  // nombre + email
