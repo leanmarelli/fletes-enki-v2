@@ -6,6 +6,15 @@ exports.handler = async (event) => {
   try {
     const { viaje, fletero, tipo } = JSON.parse(event.body);
 
+    // 🔍 LOGS DE DEBUG
+    console.log('=== INICIO DEBUG ===');
+    console.log('Fletero recibido:', fletero);
+    console.log('Email destino (mail):', fletero.mail);
+    console.log('Email destino (email):', fletero.email);
+    console.log('API Key existe:', !!process.env.RESEND_API_KEY);
+    console.log('API Key primeros 10 chars:', process.env.RESEND_API_KEY?.substring(0, 10));
+    console.log('Tipo de mensaje:', tipo);
+
     const c = viaje.cliente || {};
     const a = viaje.ayudantes || {};
 
@@ -67,10 +76,25 @@ exports.handler = async (event) => {
       <hr style="border: 1px solid #dee2e6; margin: 20px 0;">
       <p style="color: #6c757d; font-size: 14px; text-align: center;">
         Gestión Fletes Enki<br>
-        <a href="https://tudominio.com/schedule.html?dni=${fletero.dni}&date=${c.fecha}" style="color: #198754;">Ver en mi agenda</a>
+        <a href="https://fletes-enki.netlify.app/schedule.html?dni=${fletero.dni}&date=${c.fecha}" style="color: #198754;">Ver en mi agenda</a>
       </p>
     </div>
     `;
+
+    const emailDestino = 'leanmarelli17@gmail.com'; //fletero.mail || fletero.email ||
+
+    console.log('Email final a enviar:', emailDestino);
+    console.log('Preparando llamada a Resend...');
+
+    const payload = {
+      from: 'onboarding@resend.dev',  // ⬅️ SIN nombre, solo email
+      to: [emailDestino],               // ⬅️ Array
+      subject: asunto,
+      html: cuerpo,
+    };
+
+    console.log('Payload a enviar:', JSON.stringify(payload, null, 2));
+    console.log('Llamando a Resend API...');
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -78,19 +102,19 @@ exports.handler = async (event) => {
         'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        from: 'Fletes Enki <onboarding@resend.dev>',
-        to: 'leanmarelli17@gmail.com', //fletero.email || 
-        subject: asunto,
-        html: cuerpo,
-      })
+      body: JSON.stringify(payload)
     });
 
+    console.log('Resend response status:', response.status);
+    const responseText = await response.text();
+    console.log('Resend response body:', responseText);
+
     if (!response.ok) {
-      throw new Error(`Resend error: ${response.status}`);
+      throw new Error(`Resend error ${response.status}: ${responseText}`);
     }
 
-    const data = await response.json();
+    const data = JSON.parse(responseText);
+    console.log('✅ Email enviado exitosamente. ID:', data.id);
 
     return {
       statusCode: 200,
@@ -98,10 +122,15 @@ exports.handler = async (event) => {
     };
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('❌ ERROR COMPLETO:', error);
+    console.error('Error stack:', error.stack);
     return {
       statusCode: 500,
-      body: JSON.stringify({ success: false, error: error.message })
+      body: JSON.stringify({
+        success: false,
+        error: error.message,
+        stack: error.stack
+      })
     };
   }
 };
