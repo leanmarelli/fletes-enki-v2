@@ -110,13 +110,11 @@ exports.handler = async (event) => {
 
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${cleaned}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
+      headers: { Authorization: `Bearer ${cleaned}`, 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(payload),
     });
+
+    console.log('Key check', { has: !!cleaned, len: cleaned.length, head: cleaned.slice(0, 8) });
 
     const text = await resp.text();
     if (!resp.ok) return { statusCode: resp.status, headers: cors, body: text };
