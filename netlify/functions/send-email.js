@@ -94,11 +94,11 @@ exports.handler = async (event) => {
     `;
 
     // Destino: usa mail/email y fallback a tu inbox
-    const emailDestino = 'marellilean@gmail.com';
+    const emailDestino = 'leanmarelli17@gmail.com';
     console.log('Email destino:', emailDestino);
 
     const payload = {
-      from: 'onboarding@resend.dev',
+      from: 'notificaciones@fletes-enki.com',
       to: [emailDestino],
       subject: asunto,
       html: cuerpo,
