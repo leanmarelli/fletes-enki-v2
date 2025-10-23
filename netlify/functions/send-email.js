@@ -98,10 +98,11 @@ exports.handler = async (event) => {
     console.log('Email destino:', emailDestino);
 
     const payload = {
-      from: 'notificaciones@fletes-enki.com',
+      from: 'notificaciones@fletesenki.com.ar',
       to: [emailDestino],
       subject: asunto,
       html: cuerpo,
+      reply_to: 'lmarelli17@gmail.com', 
     };
 
     console.log('Llamando a Resend…');
