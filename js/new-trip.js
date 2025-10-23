@@ -4,7 +4,9 @@
 // - Guarda campos denormalizados: fecha, y, m, ym, weekStart, importe
 // - Muestra modal de éxito con link a la agenda del fletero
 import { db, collection, getDocs, addDoc, showLoading, doc, getDoc, updateDoc, deleteDoc } from "./utils.js";
-import { enhanceColorSelect } from "./color-select.js";
+import { enhanceColorSelect } from "./color-select.js"; 
+import { enviarEmailViaje } from './email-sender.js';
+
 
 const qs = new URLSearchParams(location.search);
 const MODE = (qs.get("mode") || "").toLowerCase();
@@ -391,6 +393,17 @@ form.addEventListener("submit", async (e) => {
                 await addDoc(newColl, viaje); // nuevo ID
                 await deleteDoc(doc(db, "viajes", EDIT_DNI, "items", EDIT_ID));
 
+                // 👇 NUEVO: Enviar email al fletero destino
+                try {
+                    const fleteroDoc = await getDoc(doc(db, "fleteros", fleteroDest));
+                    if (fleteroDoc.exists()) {
+                        const fleteroData = fleteroDoc.data();
+                        await enviarEmailViaje(viaje, fleteroData, 'nuevo');
+                    }
+                } catch (emailError) {
+                    console.warn('No se pudo enviar el email, pero el viaje se reasignó:', emailError);
+                }
+
                 isDirty = false;
                 const modalTitle = document.querySelector("#modalSaveSuccess .modal-title");
                 if (modalTitle) modalTitle.textContent = "Viaje reasignado";
@@ -399,11 +412,21 @@ form.addEventListener("submit", async (e) => {
                 if (link) setAgendaHref(link, { dni: fleteroDest, date: viaje.fecha });
 
                 modalExito?.show();
-
             } else {
                 // --- ACTUALIZAR en el mismo fletero ---
                 const ref = doc(db, "viajes", EDIT_DNI, "items", EDIT_ID);
                 await updateDoc(ref, viaje);
+
+                // 👇 NUEVO: Enviar email de modificación
+                try {
+                    const fleteroDoc = await getDoc(doc(db, "fleteros", EDIT_DNI));
+                    if (fleteroDoc.exists()) {
+                        const fleteroData = fleteroDoc.data();
+                        await enviarEmailViaje(viaje, fleteroData, 'modificado');
+                    }
+                } catch (emailError) {
+                    console.warn('No se pudo enviar el email, pero el viaje se actualizó:', emailError);
+                }
 
                 isDirty = false;
                 const modalTitle = document.querySelector("#modalSaveSuccess .modal-title");
@@ -420,6 +443,17 @@ form.addEventListener("submit", async (e) => {
             const ref = collection(db, "viajes", fletero, "items");
             viaje.createdAt = new Date().toISOString();
             await addDoc(ref, viaje);
+
+            // 👇 NUEVO: Enviar email al fletero asignado
+            try {
+                const fleteroDoc = await getDoc(doc(db, "fleteros", fletero));
+                if (fleteroDoc.exists()) {
+                    const fleteroData = fleteroDoc.data();
+                    await enviarEmailViaje(viaje, fleteroData, 'nuevo');
+                }
+            } catch (emailError) {
+                console.warn('No se pudo enviar el email, pero el viaje se guardó:', emailError);
+            }
 
             isDirty = false;
 
