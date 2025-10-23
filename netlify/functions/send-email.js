@@ -94,7 +94,7 @@ exports.handler = async (event) => {
     `;
 
     // Destino: usa mail/email y fallback a tu inbox
-    const emailDestino = 'leanmarelli17@gmail.com';
+    const emailDestino = 'marellilean@gmail.com';
     console.log('Email destino:', emailDestino);
 
     const payload = {
