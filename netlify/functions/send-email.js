@@ -108,7 +108,7 @@ exports.handler = async (event) => {
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${cleaned}`,
+        Authorization: `Bearer re_Ahb4whgL_DMKYJiV3uZGFxuZUMMA9sMEC`,
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
