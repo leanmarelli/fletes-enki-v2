@@ -98,16 +98,15 @@ exports.handler = async (event) => {
     `;
 
     // Modo prueba: forzar destino a tu casilla
-    const emailDestino = 'lmarelli17@gmail.com';
+    const emailDestino = 'lmarelli17@gmail.com'
 
     const payload = {
-      from: 'notificaciones@fletesenki.com.ar',
+      from: 'Fletes Enki <notificaciones@fletesenki.com.ar>',  // nombre + email
       to: [emailDestino],
       subject: asunto,
       html: cuerpo,
       reply_to: 'marellilean@gmail.com',
     };
-
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${cleaned}`, 'Content-Type': 'application/json', Accept: 'application/json' },
