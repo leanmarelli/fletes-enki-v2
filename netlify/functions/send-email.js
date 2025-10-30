@@ -100,11 +100,13 @@ exports.handler = async (event) => {
 
 
     // Modo prueba: forzar destino a tu casilla
-    const emailDestino = fletero?.mail?.trim() || fletero?.email?.trim() || 'marellilean@gmail.com';
+    const emailDestino = 'marellilean@gmail.com';
+
+    console.log('mail de los fleteros',fletero?.mail?.trim() || fletero?.email?.trim())
 
 
     const payload = {
-      from: 'Fletes Enki <notificaciones@fletesenki.com.ar>',  // nombre + email
+      from: 'Fletes Enki <notificaciones@fletesenki.com.ar>',
       to: [emailDestino],
       subject: asunto,
       html: cuerpo,

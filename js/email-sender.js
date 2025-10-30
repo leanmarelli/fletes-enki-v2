@@ -18,5 +18,6 @@ export async function enviarEmailViaje(viaje, fletero, tipo = 'nuevo') {
     }
     const data = await res.json().catch(() => ({}));
     console.log('✔ Email enviado', data);
+    console.log('Fletero emails → mail:', fletero?.mail, ' email:', fletero?.email);
     return true;
 }
