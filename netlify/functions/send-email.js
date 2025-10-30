@@ -28,9 +28,6 @@ exports.handler = async (event) => {
   try {
     const { viaje, fletero, tipo } = JSON.parse(event.body || '{}');
 
-    // Logs
-    console.log('Fletero emails → mail:', fletero?.mail, ' email:', fletero?.email);
-
     const c = viaje?.cliente || {};
     const a = viaje?.ayudantes || {};
 
@@ -96,18 +93,9 @@ exports.handler = async (event) => {
   </div>
 `;
 
-
-
-
-    // Modo prueba: forzar destino a tu casilla
-    const emailDestino = 'marellilean@gmail.com';
-
-    console.log('mail de los fleteros',fletero?.mail?.trim() || fletero?.email?.trim())
-
-
     const payload = {
       from: 'Fletes Enki <notificaciones@fletesenki.com.ar>',
-      to: [emailDestino],
+      to: fletero.mail,
       subject: asunto,
       html: cuerpo,
       reply_to: 'marellilean@gmail.com',
