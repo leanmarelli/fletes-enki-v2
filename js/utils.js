@@ -11,7 +11,8 @@ import {
     persistentMultipleTabManager,
     doc, getDoc, setDoc, addDoc, deleteDoc,
     collection, getDocs, query, where, orderBy, limit,
-    serverTimestamp, updateDoc
+    serverTimestamp, updateDoc,
+    onSnapshot,
 } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
 // ====== CONFIGS DE ENTORNO ======
@@ -81,7 +82,7 @@ export const db = initializeFirestore(app, fsSettings);
 export {
     doc, getDoc, setDoc, addDoc, deleteDoc,
     collection, getDocs, query, where, orderBy, limit,
-    serverTimestamp, updateDoc
+    serverTimestamp, updateDoc, onSnapshot
 };
 
 // ====== HELPERS DEBUG ======

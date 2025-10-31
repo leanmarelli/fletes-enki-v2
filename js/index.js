@@ -203,3 +203,26 @@ function highlightMenu() {
 
 document.addEventListener("auth:ready", highlightMenu, { once: true });
 if (window.currentUser) highlightMenu();
+
+(function hardenOffcanvas() {
+    function cleanup() {
+        // borra cualquier backdrop residual
+        document.querySelectorAll('.offcanvas-backdrop').forEach(el => el.remove());
+        // resetea clases/estilos del body si quedaron
+        document.body.classList.remove('offcanvas-open');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('paddingRight');
+    }
+
+    // cuando se oculta por cualquier motivo
+    document.addEventListener('hidden.bs.offcanvas', cleanup);
+    // clic en backdrop → oculta y limpia
+    document.addEventListener('click', (e) => {
+        const isBackdrop = e.target.classList?.contains('offcanvas-backdrop');
+        if (!isBackdrop) return;
+        const oc = bootstrap.Offcanvas.getInstance(document.querySelector('.offcanvas.show'));
+        oc?.hide();
+        // fallback de limpieza
+        setTimeout(cleanup, 0);
+    });
+})();

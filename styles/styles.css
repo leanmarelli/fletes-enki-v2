@@ -1226,10 +1226,6 @@ textarea.form-control {
     padding: .25rem .4rem;
 }
 
-.sd-notes .note-actions button:hover {
-    color: #111;
-}
-
 .sd-notes .notes-composer textarea {
     resize: vertical;
 }
@@ -1950,7 +1946,8 @@ textarea.form-control {
 }
 
 /* Aspecto chip neutro (igual al selector de fecha) */
-#btnHoy.day-chip, #btnCargar.day-chip{
+#btnHoy.day-chip,
+#btnCargar.day-chip {
     border-radius: 999px;
     height: 36px;
     padding: 0 14px;
@@ -1960,14 +1957,16 @@ textarea.form-control {
 }
 
 
-#btnHoy.day-chip:focus, #btnCargar.day-chip:focus {
+#btnHoy.day-chip:focus,
+#btnCargar.day-chip:focus {
     outline: none;
     box-shadow: 0 0 0 3px rgba(19, 83, 34, .15) !important;
     /* tu verde suave */
 }
 
 /* Alineado vertical con el date chip (por si el otro tiene 36px) */
-#btnHoy.day-chip.btn-sm, #btnCargar.day-chip.btn-sm {
+#btnHoy.day-chip.btn-sm,
+#btnCargar.day-chip.btn-sm {
     line-height: 36px;
 }
 
@@ -2033,7 +2032,7 @@ textarea.form-control {
     outline-offset: 2px;
 }
 
-.day-totals{
+.day-totals {
     margin-bottom: 10rem;
 }
 
@@ -2041,4 +2040,402 @@ textarea.form-control {
 .fab {
     z-index: 1030;
     /* debajo de cualquier backdrop/modal */
+}
+
+/* Notas */
+.container-tiny {
+    max-width: 780px;
+}
+
+.section-title {
+    font-size: .78rem;
+    letter-spacing: .08em;
+    color: #6c757d;
+    text-transform: uppercase;
+    margin: 0 0 .5rem 0;
+}
+
+.card.note {
+    border: 1px solid #e6e6e6;
+    border-radius: 14px;
+}
+
+.card.note .card-body {
+    padding: 14px;
+}
+
+.card.note textarea.form-control {
+    border-radius: 10px;
+}
+
+.btn-primary {
+    background-color: #137c32;
+    border-color: #137c32;
+}
+
+.btn-primary:hover {
+    background-color: #189b3f;
+    border-color: #189b3f;
+}
+
+.container-tiny {
+    max-width: 920px;
+}
+
+.note-item {
+    padding: .75rem 1rem;
+}
+
+/* compacidad */
+.sd-card .note-item+.note-item {
+    margin-top: .5rem;
+}
+
+.btn-icon-nav {
+    padding: .375rem .5rem;
+}
+
+/* íconos navbar */
+
+/* badge chico y legible en el toggler */
+#navNotesBadge {
+    font-size: .65rem;
+    line-height: 1;
+    padding: .25rem .35rem;
+}
+
+.container-tiny {
+    max-width: 920px;
+}
+
+.btn-icon-nav {
+    padding: .375rem .5rem;
+}
+
+.note-item {
+    padding: .75rem 1rem;
+}
+
+/* badges circulares compactos */
+.badge-circle {
+    min-width: 1.1rem;
+    height: 1.1rem;
+    padding: 0;
+    border-radius: 9999px;
+    font-size: .65rem;
+    line-height: 1.1rem;
+    text-align: center;
+}
+
+.btn-icon {
+    padding: .25rem .45rem;
+    border-radius: .6rem;
+}
+
+.btn-icon i {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.btn-trash {
+    color: #dc3545;
+}
+
+.note-item {
+    background: #fff;
+    border-radius: .75rem;
+}
+
+.container-tiny {
+    max-width: 920px;
+}
+
+.sd-card {
+    border: 1px solid #e9ecef;
+    border-radius: .8rem;
+    background: #fff;
+}
+
+.sd-card+.sd-card {
+    margin-top: 1rem;
+}
+
+/* link centrado sin subrayado en dark navbar */
+.navbar-title-link {
+    color: #fff;
+    text-decoration: none;
+}
+
+.navbar-title-link:hover {
+    color: #fff;
+    text-decoration: underline;
+}
+
+
+.badge-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.1rem;
+    height: 1.1rem;
+    padding: 0;
+    border-radius: 9999px;
+    font-size: .65rem;
+    line-height: 1;
+    text-align: center;
+}
+
+.offcanvas,
+.offcanvas-backdrop {
+    transition: none !important;
+}
+
+/* ---------- Tipografía y cortes largos ---------- */
+.note-item .h6,
+.note-item .text-body {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* ---------- Card look & feel ---------- */
+.sd-card.note-item {
+    background: #fff;
+    border: 1px solid #eef0f3;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+    border-radius: 14px;
+}
+
+.note-item .meta {
+    color: #6c757d;
+    font-size: .9rem;
+}
+
+/* ---------- Botonera de acciones ---------- */
+.btn-icon {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+}
+
+.btn-icon i {
+    font-size: 18px;
+    line-height: 1;
+}
+
+/* Estados: Hecho / Editar / Borrar */
+.btn-done {
+    border: 1px solid #d1f2e3;
+    background: #f3fbf7;
+    color: #198754;
+}
+
+.btn-done:hover {
+    border-color: #198754;
+    background: #e9f7ef;
+    color: #146c43;
+}
+
+.btn-edit {
+    border: 1px solid #dfe7fb;
+    background: #f6f8ff;
+    color: #0d3b66;
+}
+
+.btn-edit:hover {
+    border-color: #0d3b66;
+    background: #eef3ff;
+    color: #0a2f52;
+}
+
+.btn-trash {
+    border: 1px solid #fde2e2;
+    background: #fff7f7;
+    color: #dc3545;
+}
+
+.btn-trash:hover {
+    border-color: #dc3545;
+    background: #ffe9ea;
+    color: #a71d2a;
+}
+
+/* ---------- Responsive layout ---------- */
+.note-item .row-head {
+    display: flex;
+    gap: .75rem;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.note-item .row-actions {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 576px) {
+    .note-item .row-head {
+        flex-direction: column;
+    }
+
+    .note-item .row-actions {
+        align-self: flex-end;
+    }
+
+    .btn-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+    }
+}
+
+/* ---------- Título de sección ---------- */
+.notes-title {
+    font-weight: 700;
+    letter-spacing: .2px;
+}
+
+.note-item .text-body {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* tarjeta de nota */
+.sd-card.note-item {
+    position: relative;
+    padding-bottom: 58px;
+}
+
+
+/* tipografía segura para cortes largos */
+.note-item .h6,
+.note-item .text-body {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* botones (se mantienen) */
+.btn-icon {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+}
+
+.btn-done {
+    border: 1px solid #d1f2e3;
+    background: #f3fbf7;
+    color: #198754;
+}
+
+.btn-done:hover {
+    border-color: #198754;
+    background: #e9f7ef;
+    color: #146c43;
+}
+
+.btn-edit {
+    border: 1px solid #dfe7fb;
+    background: #f6f8ff;
+    color: #0d3b66;
+}
+
+.btn-edit:hover {
+    border-color: #0d3b66;
+    background: #eef3ff;
+    color: #0a2f52;
+}
+
+.btn-trash {
+    border: 1px solid #fde2e2;
+    background: #fff7f7;
+    color: #dc3545;
+}
+
+.btn-trash:hover {
+    border-color: #dc3545;
+    background: #ffe9ea;
+    color: #a71d2a;
+}
+
+@media (max-width: 576px) {
+    .btn-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+    }
+
+    .sd-card.note-item {
+        padding-bottom: 54px;
+    }
+}
+
+/* evita "rebote" inicial de los botones */
+.note-item {
+    min-height: 120px;
+    /* altura base estable */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: background 0.15s ease;
+}
+
+
+/* placeholder de altura mientras se renderiza */
+.note-item.loading {
+    background: rgba(240, 240, 240, .4);
+}
+
+.btn-icon i {
+    display: inline-block;
+    width: 16px;
+    text-align: center;
+}
+
+.note-actions {
+    DISPLAY: FLEX !important;
+    JUSTIFY-CONTENT: FLEX-END !important; 
+    GAP: 12PX !important;
+    padding-top: 1rem !important;
+}
+
+#quickSearchBox .dropdown-menu {
+    transform: translate3d(0, 32px, 0);
+}
+
+#quickSearchBox .item {
+    padding: .5rem .75rem;
+    cursor: pointer;
+}
+
+#quickSearchBox .item:hover {
+    background: #f5f7fa;
+}
+
+#quickSearchBox .more {
+    border-top: 1px solid #eee;
+    font-weight: 600;
+}
+
+/* resultados */
+#qresults .list-group-item {
+    cursor: pointer;
+}
+
+#qresults .meta {
+    font-size: .85rem;
+    color: #6c757d;
+}
+
+#qresults .arrow {
+    opacity: .6;
 }

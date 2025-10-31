@@ -50,56 +50,68 @@
                     <path d="M15 6l-6 6 6 6" />
                 </svg>
             </button>
-
+    
             <!-- Título centrado fijo -->
             <span class="navbar-brand mx-0 position-absolute start-50 translate-middle-x navbar-title">
                 Gestión Fletes Enki
             </span>
-
+    
             <!-- Menú -->
-            <button class="navbar-toggler ms-auto btn-icon-nav border-0" type="button" data-bs-toggle="offcanvas"
-                data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu" aria-label="Abrir menú">
+            <button class="navbar-toggler ms-auto btn-icon-nav border-0 position-relative" type="button"
+                data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu"
+                aria-label="Abrir menú">
                 <span class="navbar-toggler-icon"></span>
+                <span id="navNotesBadge"
+                    class="badge-circle bg-danger text-white position-absolute bottom start-100 translate-middle d-none">0</span>
             </button>
+    
+    
         </div>
     </nav>
-
-    <!-- Menú lateral -->
+    
+    <!-- MENÚ LATERAL -->
     <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasMenu">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title">Menú</h5>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
         </div>
-
+    
         <div class="offcanvas-body">
             <ul class="list-unstyled">
                 <li data-visible-for="admin">
                     <a href="index.html" class="btn btn-outline-dark w-100 mb-2">Inicio</a>
                 </li>
-
+    
                 <li data-visible-for="user">
                     <a id="linkMiAgenda" href="#" class="btn btn-outline-dark w-100 mb-2">Mi agenda</a>
                 </li>
-
+    
                 <li data-visible-for="admin">
                     <a href="new-trip.html" class="btn btn-outline-dark w-100 mb-2">Cargar agenda</a>
                 </li>
-
+    
                 <li data-visible-for="admin">
                     <a class="btn btn-outline-dark w-100 mb-2" data-bs-toggle="collapse" href="#collapseAgendasMenu"
-                        role="button" aria-controls="collapseAgendasMenu">Ver agendas</a>
-
+                        role="button" aria-controls="collapseAgendasMenu">
+                        Ver agendas
+                    </a>
                     <div class="collapse mb-4" id="collapseAgendasMenu">
                         <div class="agendas-card p-2 bg-light border rounded-3">
                             <div id="listaFleterosMenu" class="list-group list-group-flush agendas-list"></div>
                         </div>
                     </div>
                 </li>
-
+    
+                <a id="menuNotasLink" href="notes.html" class="btn btn-outline-dark w-100 mb-2 position-relative">
+                    Notas
+                    <span id="badgeMenuNotas"
+                        class="badge-circle bg-danger text-white position-absolute top-0 start-100 translate-middle d-none">0</span>
+                </a>
+    
                 <li>
                     <a href="summary-data.html" class="btn btn-outline-dark w-100 mb-2">Resumen</a>
                 </li>
-
+    
                 <li>
                     <a href="login.html?logout=1" data-logout class="btn btn-outline-danger w-100">Cerrar sesión</a>
                 </li>
@@ -241,6 +253,7 @@
 
     <script type="module" src="js/schedule.js"></script>
     <script type="module" src="js/index.js"></script>
+    <script type="module" src="js/notes-bell.js"></script> <!-- si lo usás -->
 
 
 </body>
