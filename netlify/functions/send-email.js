@@ -1,8 +1,11 @@
 // netlify/functions/send-email.js
 exports.handler = async (event) => {
-  // CORS
+  // netlify/functions/send-email.js
   const ALLOWED_ORIGINS = [
     'https://fletesenki.com.ar',
+    'http://fletesenki.com.ar',
+    'https://www.fletesenki.com.ar',
+    'http://www.fletesenki.com.ar',
     'https://fletes-enki.netlify.app',
   ];
   const origin = event.headers.origin || '';
@@ -12,7 +15,7 @@ exports.handler = async (event) => {
     'Access-Control-Allow-Methods': 'POST,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type,X-Mail-Token',
     'Access-Control-Max-Age': '86400',
-    'Vary': 'Origin',
+    Vary: 'Origin',
   };
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: cors };
