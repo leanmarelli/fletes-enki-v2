@@ -91,7 +91,7 @@ exports.handler = async (event) => {
         </table>
 
         <p style="margin-top:25px;font-size:13px;color:#777;text-align:center;">
-          <a href="https://fletesenki.com.ar/schedule.html?dni=${fletero?.dni || ''}&date=${c.fecha || ''}"
+          <a href="https://fletesenki.com.ar/public/schedule.html?dni=${fletero?.dni || ''}&date=${c.fecha || ''}"
              style="color:#198754;text-decoration:none;">📅 Ver en mi agenda</a>
           <br><br>— Gestión Fletes Enki —
         </p>
