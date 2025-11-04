@@ -13,9 +13,6 @@
     <!-- Tus estilos -->
     <link rel="stylesheet" href="styles/styles.css" />
 
-    <!-- Auth guard (expone window.currentUser) -->
-    <script id="auth-guard" type="module" src="./js/auth-guard.js" data-guard="user"></script>
-
     <script type="module">
         import { applyFeatureGates, installActionGuards } from './js/gate.js';
 
@@ -173,6 +170,9 @@
     <script type="module" src="js/index.js"></script> <!-- si lo usás -->
     <script type="module" src="js/notes-bell.js"></script> <!-- si lo usás -->
     <script type="module" src="js/notas.js"></script> <!-- SIEMPRE al final -->
+    <!-- en <head> -->
+    <script id="auth-guard" type="module" src="./js/auth-guard.js" data-guard="admin"></script>
+
 
     <script>
         (function markActiveOffcanvas() {
