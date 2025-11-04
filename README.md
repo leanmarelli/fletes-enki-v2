@@ -69,3 +69,14 @@ git checkout -b feature/123-filtro-por-fecha
    * O directamente PR de `develop` → `main` si el proceso es simple.
 
 ---
+
+
+## Comandos para exportar base de datos de prod e importalos en dev
+# DESDE PS C:\Users\leanm\OneDrive\Desktop\Lean\Proyects\fletenki_v2\firestore-sync>
+# Desde PowerShell
+
+## PROD EXPORT
+node .\firebase\export-firestore.cjs --creds ".\firebase\sa_prod.json" --out ".\firebase\firestore-backup.json"
+
+## DEV IMPORT
+node .\firebase\export-firestore.cjs --creds ".\firebase\sa_prod.json" --out ".\firebase\firestore-backup.json"

@@ -2439,3 +2439,86 @@ textarea.form-control {
 #qresults .arrow {
     opacity: .6;
 }
+
+/* Fleteros: chips responsive */
+.fleteros-scroll {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 4px 2px 2px;
+    scroll-snap-type: x mandatory;
+}
+
+.fletero-chip {
+    scroll-snap-align: start;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    height: 56px;
+    padding: 10px 14px;
+    border: 1px solid #e9ecef;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, .03);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: transform .06s ease, box-shadow .12s ease, border-color .12s ease;
+}
+
+.fletero-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, .07);
+    border-color: #dee2e6;
+}
+
+.fletero-chip:focus-visible {
+    outline: 3px solid rgba(25, 135, 84, .35);
+    outline-offset: 2px;
+}
+
+.fletero-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    box-shadow: inset 0 0 0 2px #fff;
+    flex: 0 0 12px;
+}
+
+.fletero-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+}
+
+.fletero-text strong {
+    font-weight: 700;
+    font-size: 15px;
+    color: #212529;
+}
+
+.fletero-car {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.fletero-arrow {
+    margin-left: 6px;
+    opacity: .45;
+}
+
+/* Desktop → grid autosize */
+@media (min-width: 768px) {
+    .fleteros-scroll {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        overflow: visible;
+        gap: 14px;
+    }
+
+    .fletero-chip {
+        width: 100%;
+        white-space: normal;
+        height: auto;
+        min-height: 64px;
+    }
+}
