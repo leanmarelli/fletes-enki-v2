@@ -345,27 +345,28 @@ function tipoToClass(t = "") {
   return "badge-carga";
 }
 
+const FER_UPLOAD_BASE = "https://fletesenki.com.ar/public/uploads";
+
 function resolveImageSrc(img) {
   if (!img) return "";
 
   // si ya viene con http/https, usarlo directo
-  if (img.url && /^https?:\/\//.test(img.url)) return img.url;
+  if (img.url && /^https?:\/\//i.test(img.url)) return img.url;
 
-  // si viene path relativo (lo que devuelve el PHP)
+  // path relativo devuelto por PHP: "dev/viajes/...."
   if (img.path) {
-    const base = `${window.location.origin}/public/uploads/`;
-    return base + img.path.replace(/^\/+/, "");
+    return `${FER_UPLOAD_BASE}/${img.path}`.replace(/([^:]\/)\/+/g, "$1");
   }
 
-  // fallback: por si en algún momento guardaste solo un string
+  // fallback por si alguna vez guardaste un string suelto
   if (typeof img === "string") {
-    if (/^https?:\/\//.test(img)) return img;
-    const base = `${window.location.origin}/public/uploads/`;
-    return base + img.replace(/^\/+/, "");
+    if (/^https?:\/\//i.test(img)) return img;
+    return `${FER_UPLOAD_BASE}/${img}`.replace(/([^:]\/)\/+/g, "$1");
   }
 
   return "";
 }
+
 
 
 // ----------------------------------------------------
@@ -475,26 +476,26 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
     const c = viaje.cliente || {};
     const ayud = viaje.ayudantes || {};
 
-    // imágenes [{ url, path }]
     const imagenes = Array.isArray(viaje.imagenes) ? viaje.imagenes : [];
     const galleryHtml = imagenes.length
       ? `
-        <small class="mb-0">Imágenes:</small>
-        <div class="d-flex flex-wrap gap-2 mb-2">
-          ${imagenes.map(img => {
+      <small class="mb-0">Imágenes:</small>
+      <div class="d-flex flex-wrap gap-2 mb-2">
+        ${imagenes.map(img => {
         const src = resolveImageSrc(img);
         if (!src) return "";
         return `
-              <img src="${src}"
-                   alt="Imagen del viaje"
-                   class="trip-img-thumb"
-                   data-full-url="${src}"
-                   style="width:72px;height:72px;object-fit:cover;border-radius:6px;cursor:zoom-in;">
-            `;
+            <img src="${src}"
+                 alt="Imagen del viaje"
+                 class="trip-img-thumb"
+                 data-full-url="${src}"
+                 style="width:72px;height:72px;object-fit:cover;border-radius:6px;cursor:zoom-in;">
+          `;
       }).join("")}
-        </div>
-      `
+      </div>
+    `
       : "";
+
 
     const color = colorHex || "#ffc107";
     const bruto = Number(c.precioServicio) || 0;

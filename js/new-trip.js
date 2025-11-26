@@ -22,11 +22,31 @@ const RETURN_TO = qs.get("return") || "";
 let modalExito, modalError;
 
 const MAX_IMAGES_PER_TRIP = 2;
-
-// [{ url, path }]
 let existingImages = [];
-let imagesToDelete = []; // solo para saber cuáles sacó el usuario del viaje (no borra en servidor todavía)
-let pendingFiles = [];   // [File, File...]
+let imagesToDelete = [];
+let pendingFiles = [];
+
+const FER_UPLOAD_BASE = "https://fletesenki.com.ar/public/uploads";
+
+function resolveImageSrc(img) {
+    if (!img) return "";
+
+    if (img.url && /^https?:\/\//i.test(img.url)) {
+        return img.url;
+    }
+
+    if (img.path) {
+        return `${FER_UPLOAD_BASE}/${img.path}`.replace(/([^:]\/)\/+/g, "$1");
+    }
+
+    if (typeof img === "string") {
+        if (/^https?:\/\//i.test(img)) return img;
+        return `${FER_UPLOAD_BASE}/${img}`.replace(/([^:]\/)\/+/g, "$1");
+    }
+
+    return "";
+}
+
 
 const DATE_Q = (qs.get("date") || "").trim(); // puede venir del FAB
 
@@ -35,15 +55,16 @@ const DATE_Q = (qs.get("date") || "").trim(); // puede venir del FAB
 function renderTripImagesPreview() {
     const cont = document.getElementById("tripImagesPreview");
     const input = document.getElementById("imagenesViaje");
-    const src = resolveImageSrc(img);
     if (!cont) return;
 
     cont.innerHTML = "";
 
-    // EXISTENTES
+    // EXISTENTES (ya guardadas para este viaje)
     existingImages.forEach((img, idx) => {
         const wrapper = document.createElement("div");
         wrapper.className = "position-relative";
+
+        const src = resolveImageSrc(img);
 
         wrapper.innerHTML = `
       <img src="${src}"
@@ -60,7 +81,7 @@ function renderTripImagesPreview() {
         cont.appendChild(wrapper);
     });
 
-    // NUEVAS (seleccionadas en esta sesión)
+    // NUEVAS (seleccionadas en esta sesión, aún no subidas)
     pendingFiles.forEach((file, idx) => {
         const wrapper = document.createElement("div");
         wrapper.className = "position-relative";
@@ -90,6 +111,7 @@ function renderTripImagesPreview() {
         if (input.disabled) input.value = "";
     }
 }
+
 
 document.getElementById("tripImagesPreview")?.addEventListener("click", (e) => {
     const btn = e.target.closest(".btn-remove-img");
@@ -172,32 +194,8 @@ function asYMD(s = "") {
     return "";
 }
 
-
-function resolveImageSrc(img) {
-    if (!img) return "";
-
-    // si ya viene con http/https, usarlo directo
-    if (img.url && /^https?:\/\//.test(img.url)) return img.url;
-
-    // si viene path relativo (lo que devuelve el PHP)
-    if (img.path) {
-        const base = `${window.location.origin}/public/uploads/`;
-        return base + img.path.replace(/^\/+/, "");
-    }
-
-    // fallback: por si en algún momento guardaste solo un string
-    if (typeof img === "string") {
-        if (/^https?:\/\//.test(img)) return img;
-        const base = `${window.location.origin}/public/uploads/`;
-        return base + img.replace(/^\/+/, "");
-    }
-
-    return "";
-}
-
 // =================== UPLOAD A FEROZO ===================
 
-// Cambiá esto por tu dominio real
 const UPLOAD_ENDPOINT = "https://fletesenki.com.ar/public/upload.php";
 
 /**
