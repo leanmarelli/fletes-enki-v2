@@ -35,6 +35,7 @@ const DATE_Q = (qs.get("date") || "").trim(); // puede venir del FAB
 function renderTripImagesPreview() {
     const cont = document.getElementById("tripImagesPreview");
     const input = document.getElementById("imagenesViaje");
+    const src = resolveImageSrc(img);
     if (!cont) return;
 
     cont.innerHTML = "";
@@ -45,7 +46,7 @@ function renderTripImagesPreview() {
         wrapper.className = "position-relative";
 
         wrapper.innerHTML = `
-      <img src="${img.url}"
+      <img src="${src}"
            alt="Imagen del viaje"
            style="width:80px;height:80px;object-fit:cover;border-radius:6px;">
       <button type="button"
@@ -168,6 +169,29 @@ function asYMD(s = "") {
         const [, d, mo, y] = m;
         return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     }
+    return "";
+}
+
+
+function resolveImageSrc(img) {
+    if (!img) return "";
+
+    // si ya viene con http/https, usarlo directo
+    if (img.url && /^https?:\/\//.test(img.url)) return img.url;
+
+    // si viene path relativo (lo que devuelve el PHP)
+    if (img.path) {
+        const base = `${window.location.origin}/public/uploads/`;
+        return base + img.path.replace(/^\/+/, "");
+    }
+
+    // fallback: por si en algún momento guardaste solo un string
+    if (typeof img === "string") {
+        if (/^https?:\/\//.test(img)) return img;
+        const base = `${window.location.origin}/public/uploads/`;
+        return base + img.replace(/^\/+/, "");
+    }
+
     return "";
 }
 

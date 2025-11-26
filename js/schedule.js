@@ -345,6 +345,29 @@ function tipoToClass(t = "") {
   return "badge-carga";
 }
 
+function resolveImageSrc(img) {
+  if (!img) return "";
+
+  // si ya viene con http/https, usarlo directo
+  if (img.url && /^https?:\/\//.test(img.url)) return img.url;
+
+  // si viene path relativo (lo que devuelve el PHP)
+  if (img.path) {
+    const base = `${window.location.origin}/public/uploads/`;
+    return base + img.path.replace(/^\/+/, "");
+  }
+
+  // fallback: por si en algún momento guardaste solo un string
+  if (typeof img === "string") {
+    if (/^https?:\/\//.test(img)) return img;
+    const base = `${window.location.origin}/public/uploads/`;
+    return base + img.replace(/^\/+/, "");
+  }
+
+  return "";
+}
+
+
 // ----------------------------------------------------
 // Navegador de días
 // ----------------------------------------------------
@@ -458,13 +481,17 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
       ? `
         <small class="mb-0">Imágenes:</small>
         <div class="d-flex flex-wrap gap-2 mb-2">
-          ${imagenes.map(img => `
-            <img src="${img.url}"
-                 alt="Imagen del viaje"
-                 class="trip-img-thumb"
-                 data-full-url="${img.url}"
-                 style="width:72px;height:72px;object-fit:cover;border-radius:6px;cursor:zoom-in;">
-          `).join("")}
+          ${imagenes.map(img => {
+        const src = resolveImageSrc(img);
+        if (!src) return "";
+        return `
+              <img src="${src}"
+                   alt="Imagen del viaje"
+                   class="trip-img-thumb"
+                   data-full-url="${src}"
+                   style="width:72px;height:72px;object-fit:cover;border-radius:6px;cursor:zoom-in;">
+            `;
+      }).join("")}
         </div>
       `
       : "";
@@ -660,7 +687,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  
+
   // modal eliminar (si existe en el DOM)
   const modalEl = document.getElementById("modalEliminarViaje");
   if (modalEl && window.bootstrap) modalEliminar = new bootstrap.Modal(modalEl);
