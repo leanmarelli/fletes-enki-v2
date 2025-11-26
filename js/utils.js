@@ -12,27 +12,32 @@ import {
     doc, getDoc, setDoc, addDoc, deleteDoc,
     collection, getDocs, query, where, orderBy, limit,
     serverTimestamp, updateDoc,
-    onSnapshot,
+    onSnapshot, 
 } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+import {
+    getStorage,
+    ref as storageRef,
+    uploadBytes,
+    getDownloadURL,
+    deleteObject,
+} from "https://www.gstatic.com/firebasejs/10.12.3/firebase-storage.js";
 
 // ====== CONFIGS DE ENTORNO ======
-// PROD (ya lo tenías)
+// Copiados tal cual del snippet de Firebase (ojo con storageBucket: appspot.com)
 const PROD_CONFIG = {
     apiKey: "AIzaSyDhmZ_5e4prHLW7nQp_VY0KoTw9ObM7qVQ",
     authDomain: "gestion-fletes-enki.firebaseapp.com",
     projectId: "gestion-fletes-enki",
-    storageBucket: "gestion-fletes-enki.firebasestorage.app",
+    storageBucket: "gestion-fletes-enki.appspot.com",
     messagingSenderId: "1091950041596",
     appId: "1:1091950041596:web:b6c0e2942f92eafad93a79"
 };
 
-// DEV (copiá/pegá desde tu env_dev.json de Firebase → Config)
-// ⚠️ Ejemplo placeholder — reemplazá por tus valores reales:
 const DEV_CONFIG = {
     apiKey: "AIzaSyAbUEM4j7Orwc0DPZIExA7lZ3729UPC-SA",
     authDomain: "gestion-fletes-enki-dev.firebaseapp.com",
     projectId: "gestion-fletes-enki-dev",
-    storageBucket: "gestion-fletes-enki-dev.firebasestorage.app",
+    storageBucket: "gestion-fletes-enki-dev.appspot.com",
     messagingSenderId: "572930533229",
     appId: "1:572930533229:web:38e5072e702acbde319c64",
     measurementId: "G-9F343B0BN0"
@@ -42,7 +47,7 @@ const DEV_CONFIG = {
 const host = location.hostname;
 const params = new URLSearchParams(location.search);
 
-// 1) Forzado por querystring/localStorage (útil para probar en cualquier dominio)
+// 1) Forzado por querystring/localStorage
 const forcedEnv = (params.get("env") || localStorage.getItem("fletenv") || "").toLowerCase();
 
 // 2) Heurística por hostname
@@ -50,12 +55,13 @@ const isLikelyDevHost =
     host.includes("localhost") ||
     host === "127.0.0.1" ||
     host === "[::1]" ||
-    host.endsWith(".netlify.app"); // tu site dev
+    host.endsWith(".netlify.app");
 
 // Resolve final env
-const ENV = forcedEnv === "dev" ? "dev"
-    : forcedEnv === "prod" ? "prod"
-        : (isLikelyDevHost ? "dev" : "prod");
+const ENV =
+    forcedEnv === "dev" ? "dev" :
+        forcedEnv === "prod" ? "prod" :
+            (isLikelyDevHost ? "dev" : "prod");
 
 const firebaseConfig = ENV === "dev" ? DEV_CONFIG : PROD_CONFIG;
 
@@ -74,19 +80,27 @@ const fsSettings = {
     } : {})
 };
 
-// ====== INIT APP/FIRESTORE ======
-export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-export const db = initializeFirestore(app, fsSettings);
+// ====== INIT APP/FIRESTORE/STORAGE ======
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+const db = initializeFirestore(app, fsSettings);
+const storage = getStorage(app);
 
-// ====== RE-EXPORT FIRESTORE HELPERS ======
+// ====== RE-EXPORT HELPERS ======
 export {
+    db,
+    // firestore
     doc, getDoc, setDoc, addDoc, deleteDoc,
     collection, getDocs, query, where, orderBy, limit,
-    serverTimestamp, updateDoc, onSnapshot
+    serverTimestamp, updateDoc, onSnapshot,
+    // storage
+    storage,
+    storageRef,
+    uploadBytes,
+    getDownloadURL,
+    deleteObject,
 };
 
 // ====== HELPERS DEBUG ======
-// Consultá desde consola: window._fletenv  /  setFletEnv('dev'|'prod')
 export const currentEnv = ENV;
 export function setFletEnv(e) {
     localStorage.setItem("fletenv", e);

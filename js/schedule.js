@@ -439,6 +439,21 @@ function sortPorHorario(arr) {
 // ----------------------------------------------------
 function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin = false) {
   const cont = document.getElementById("viajes-dia");
+  const imagenes = Array.isArray(viaje.imagenes) ? viaje.imagenes : [];
+  const galleryHtml = imagenes.length
+    ? `
+    <small class="mb-0">Imágenes:</small>
+    <div class="d-flex flex-wrap gap-2 mb-2">
+      ${imagenes.map(img => `
+        <a href="${img.url}" target="_blank" rel="noopener">
+          <img src="${img.url}"
+               alt="Imagen del viaje"
+               style="width:72px;height:72px;object-fit:cover;border-radius:6px;">
+        </a>
+      `).join("")}
+    </div>
+  `
+    : "";
   cont.innerHTML = "";
   if (!viajes.length) {
     cont.innerHTML = `<div class="alert alert-warning text-center">No hay viajes para este día.</div>`;
@@ -523,6 +538,8 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
 
             <small class="mb-0">Peajes:</small>
             <div class="mb-1"><b>${c.peajes || ""}</b></div>
+
+            ${galleryHtml}
 
             ${helpersBody}
           </div>

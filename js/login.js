@@ -97,10 +97,11 @@ window.addEventListener("DOMContentLoaded", () => {
 
       redirectByRole({ next, isAdmin, dni });
     } catch (err) {
-      console.error("Error en login:", err);
-      showError(errorMsg, "❌ Error de conexión, intenta de nuevo");
+      console.error("Error en login:", err.code, err.message, err);
+      showError(errorMsg, `❌ Error de conexión (${err?.code || 'desconocido'})`);
     } finally {
       showLoading(false);
     }
+
   });
 });
