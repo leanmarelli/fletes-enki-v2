@@ -439,22 +439,8 @@ function sortPorHorario(arr) {
 // ----------------------------------------------------
 function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin = false) {
   const cont = document.getElementById("viajes-dia");
-  const imagenes = Array.isArray(viaje.imagenes) ? viaje.imagenes : [];
-  const galleryHtml = imagenes.length
-    ? `
-    <small class="mb-0">Imágenes:</small>
-    <div class="d-flex flex-wrap gap-2 mb-2">
-      ${imagenes.map(img => `
-        <a href="${img.url}" target="_blank" rel="noopener">
-          <img src="${img.url}"
-               alt="Imagen del viaje"
-               style="width:72px;height:72px;object-fit:cover;border-radius:6px;">
-        </a>
-      `).join("")}
-    </div>
-  `
-    : "";
   cont.innerHTML = "";
+
   if (!viajes.length) {
     cont.innerHTML = `<div class="alert alert-warning text-center">No hay viajes para este día.</div>`;
     return;
@@ -465,6 +451,23 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
   viajes.forEach(viaje => {
     const c = viaje.cliente || {};
     const ayud = viaje.ayudantes || {};
+
+    // imágenes [{ url, path }]
+    const imagenes = Array.isArray(viaje.imagenes) ? viaje.imagenes : [];
+    const galleryHtml = imagenes.length
+      ? `
+        <small class="mb-0">Imágenes:</small>
+        <div class="d-flex flex-wrap gap-2 mb-2">
+          ${imagenes.map(img => `
+            <img src="${img.url}"
+                 alt="Imagen del viaje"
+                 class="trip-img-thumb"
+                 data-full-url="${img.url}"
+                 style="width:72px;height:72px;object-fit:cover;border-radius:6px;cursor:zoom-in;">
+          `).join("")}
+        </div>
+      `
+      : "";
 
     const color = colorHex || "#ffc107";
     const bruto = Number(c.precioServicio) || 0;
@@ -571,6 +574,8 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
 
   cont.appendChild(frag);
 }
+
+
 
 // ----------------------------------------------------
 // Controlador principal
@@ -682,8 +687,48 @@ document.addEventListener("DOMContentLoaded", () => {
 // ----------------------------------------------------
 const contViajes = document.getElementById("viajes-dia");
 
+function openImageLightbox(url) {
+  let lb = document.getElementById("tripImageLightbox");
+  if (!lb) {
+    lb = document.createElement("div");
+    lb.id = "tripImageLightbox";
+    lb.style.position = "fixed";
+    lb.style.inset = "0";
+    lb.style.background = "rgba(0,0,0,0.85)";
+    lb.style.display = "none";
+    lb.style.alignItems = "center";
+    lb.style.justifyContent = "center";
+    lb.style.zIndex = "9999";
+    lb.style.cursor = "zoom-out";
+    lb.innerHTML = `
+      <img id="tripImageLightboxImg"
+           src=""
+           alt="Imagen del viaje"
+           style="max-width:100%;max-height:100%;border-radius:12px;box-shadow:0 0 24px rgba(0,0,0,0.7);">
+    `;
+    lb.addEventListener("click", () => {
+      lb.style.display = "none";
+    });
+    document.body.appendChild(lb);
+  }
+
+  const imgEl = document.getElementById("tripImageLightboxImg");
+  if (imgEl) imgEl.src = url;
+  lb.style.display = "flex";
+}
+
+
 // Editar
 if (contViajes) {
+  // Zoom de imágenes
+  contViajes.addEventListener("click", (e) => {
+    const thumb = e.target.closest(".trip-img-thumb");
+    if (!thumb) return;
+    const url = thumb.dataset.fullUrl;
+    if (!url) return;
+    openImageLightbox(url);
+  });
+
   contViajes.addEventListener("click", (e) => {
     const btnEdit = e.target.closest(".btn-edit-trip");
     if (btnEdit) {
