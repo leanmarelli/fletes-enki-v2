@@ -1,7 +1,6 @@
 // js/index.js
 import { applyFeatureGates, installActionGuards, isAdmin } from "./gate.js";
 import { db, collection, getDocs } from "./utils.js";
-import { enhanceColorSelect } from "./color-select.js"; 
 
 
 const initials = (name = "") =>
@@ -105,20 +104,63 @@ function initMenuAgendas() {
     });
 }
 
-// ---------------- Select de la tarjeta “Agendas” ----------------
-async function hydrateSelectFletero() {
-    const select = document.getElementById("fletero");
-    if (!select) return;
-    if (!IS_INDEX) return; // solo index redirige
+// ---------------- Grilla de la tarjeta “Agendas” ----------------
+const CHEVRON_SVG =
+    '<svg class="fl-chevron" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">' +
+    '<path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+    'stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function renderFleteroTile({ dni, name, car, colorHex }) {
+    const a = document.createElement("a");
+    a.className = "fl-tile";
+    a.href = `schedule.html?dni=${encodeURIComponent(dni)}`;
+    a.style.setProperty("--fl-color", colorHex || "#ced4da");
+
+    const dot = document.createElement("span");
+    dot.className = "fl-dot";
+    dot.textContent = initials(name);
+
+    const text = document.createElement("span");
+    text.className = "fl-text";
+
+    // Solo el primer nombre; el completo queda como tooltip/accesibilidad
+    const firstName = (name || "").trim().split(/\s+/)[0] || "—";
+    const title = document.createElement("span");
+    title.className = "fl-name";
+    title.textContent = firstName;
+    text.appendChild(title);
+    a.title = name || "";
+    a.setAttribute("aria-label", `Ver agenda de ${name || firstName}`);
+
+    if (car) {
+        const sub = document.createElement("span");
+        sub.className = "fl-sub";
+        sub.textContent = car;
+        text.appendChild(sub);
+    }
+
+    a.append(dot, text);
+    a.insertAdjacentHTML("beforeend", CHEVRON_SVG);
+    return a;
+}
+
+async function hydrateFleterosGrid() {
+    const grid = document.getElementById("fleterosGrid");
+    if (!grid) return;
 
     try {
         const data = await fetchFleteros();
-        enhanceColorSelect(select, data, {
-            placeholder: "Elegir persona",
-            onChange: (dni) => { if (dni) location.href = `schedule.html?dni=${encodeURIComponent(dni)}`; }
-        });
+        grid.innerHTML = "";
+        if (!data.length) {
+            grid.innerHTML = '<p class="fl-empty">No hay fleteros cargados.</p>';
+            return;
+        }
+        const frag = document.createDocumentFragment();
+        data.forEach(x => frag.appendChild(renderFleteroTile(x)));
+        grid.appendChild(frag);
     } catch (e) {
-        console.error("No se pudo cargar #fletero:", e);
+        console.error("No se pudo cargar la grilla de fleteros:", e);
+        grid.innerHTML = '<p class="fl-empty text-danger">No se pudieron cargar los fleteros.</p>';
     }
 }
 
@@ -131,7 +173,7 @@ function boot() {
     initMenuAgendas();
 
     if (IS_INDEX) {
-        hydrateSelectFletero();
+        hydrateFleterosGrid();
     }
 }
 

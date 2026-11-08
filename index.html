@@ -120,56 +120,42 @@
     <!-- CONTENIDO PRINCIPAL -->
     <div class="container container-tiny my-4">
         <!-- Bienvenida -->
-        <p class="text-center">Bienvenido a su gestión comercial de los servicios.</p>
 
         <!-- BUSCADOR RÁPIDO -->
-        <div class="card mb-3">
-            <div class="card-body text-center">
-                <h5 class="card-title">Buscador rápido</h5>
-                <p class="card-text">Busque por cliente, carga, descarga, observaciones o DNI.</p>
+        <section class="card home-card mb-3">
+            <div class="card-body">
+                <h2 class="home-card-title mb-2">Buscador rápido</h2>
 
                 <div class="position-relative" id="qbox">
-                    <input id="qinput" class="form-control mb-2" type="search"
-                        placeholder="Ejemplo: Juan, Palermo, caja, 30111222..." autocomplete="off">
+                    <input id="qinput" class="form-control" type="search"
+                        placeholder="Cliente, carga, descarga, DNI..." autocomplete="off">
                     <div id="qresults" class="list-group d-none text-start"></div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Tarjeta Cargar agenda -->
-        <div class="card mb-3">
-            <div class="card-body text-center">
-                <h5 class="card-title">Cargar agenda</h5>
-                <p class="card-text">Por cada persona se cargará la agenda de viajes.</p>
-                <button class="btn btn-success" onclick="window.location.href='new-trip.html'">
-                    Cargar nuevo viaje
-                </button>
+        <!-- AGENDAS: listado directo de fleteros -->
+        <section class="card home-card mb-3">
+            <div class="card-body">
+                <h2 class="home-card-title">Agendas</h2>
+                <p class="home-card-sub">Elegí una persona para ver su agenda.</p>
+
+                <div id="fleterosGrid" class="fl-grid" aria-live="polite">
+                    <div class="fl-tile fl-skeleton"></div>
+                    <div class="fl-tile fl-skeleton"></div>
+                    <div class="fl-tile fl-skeleton"></div>
+                    <div class="fl-tile fl-skeleton"></div>
+                </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Tarjeta Agendas -->
-        <div class="card mb-3">
-            <div class="card-body text-center">
-                <h5 class="card-title">Agendas</h5>
-                <p class="card-text">Visualizar agendas de cada persona asignada.</p>
-                <select class="form-select mb-2" id="fletero">
-                    <option>Seleccionar fletero</option>
-                </select>
-
+        <!-- RESUMEN GENERAL -->
+        <section class="card home-card">
+            <div class="card-body home-row">
+                <h2 class="home-card-title mb-0">Resumen general</h2>
+                <a href="summary-data.html" class="btn btn-success home-row-btn">Obtener datos</a>
             </div>
-        </div>
-
-
-        <!-- Tarjeta Resumen general -->
-        <div class="card">
-            <div class="card-body text-center">
-                <h5 class="card-title">Resumen general</h5>
-                <p class="card-text">Detalle de ganancias por cada día, semana y mes de servicio.</p>
-                <button class="btn btn-success" onclick="window.location.href='summary-data.html'">
-                    Obtener datos
-                </button>
-            </div>
-        </div>
+        </section>
     </div>
 
     <div id="appLoading" class="app-loading">
