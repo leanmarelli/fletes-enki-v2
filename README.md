@@ -80,3 +80,20 @@ node .\firebase\export-firestore.cjs --creds ".\firebase\sa_prod.json" --out ".\
 
 ## DEV IMPORT
 node .\firebase\export-firestore.cjs --creds ".\firebase\sa_prod.json" --out ".\firebase\firestore-backup.json"
+
+---
+
+## Caché del navegador (versión de CSS/JS)
+
+Los HTML piden los CSS y JS con un número de versión, por ejemplo `styles/styles.css?v=20261108`.
+Así, cuando se sube un cambio, los usuarios bajan el archivo nuevo sin tener que borrar la caché.
+
+**Cada vez que se publique un cambio en CSS o JS**, actualizar el número en todos los HTML (usar la fecha del día):
+
+```bash
+# macOS (en Linux/Git Bash: sed -i sin las comillas vacías)
+sed -i '' -E 's/\?v=[0-9]+/?v=AAAAMMDD/g' *.html
+```
+
+En el servidor de producción (Apache), el archivo `.htaccess` hace que el navegador siempre consulte si hay un HTML nuevo.
+Al subir archivos al servidor, **incluir siempre los HTML** (y el `.htaccess` la primera vez).

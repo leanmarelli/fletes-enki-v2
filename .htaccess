@@ -1,0 +1,10 @@
+# Cache del navegador
+# - HTML: siempre consulta al servidor si hay una versión nueva (así los
+#   usuarios reciben los cambios sin tener que borrar la caché).
+# - CSS/JS: se pueden guardar, porque los HTML los piden con ?v=... y al
+#   cambiar ese número el navegador baja el archivo nuevo.
+<IfModule mod_headers.c>
+    <FilesMatch "\.(html|htm)$">
+        Header set Cache-Control "no-cache, must-revalidate"
+    </FilesMatch>
+</IfModule>
