@@ -3,8 +3,15 @@
 // - Hidrata el <select id="fletero"> en esta página (sin redirigir)
 // - Guarda campos denormalizados: fecha, y, m, ym, weekStart, importe
 // - Muestra modal de éxito con link a la agenda del fletero
-import { db, collection, getDocs, addDoc, showLoading, doc, getDoc, updateDoc, deleteDoc } from "./utils.js";
+
+import {
+    db, collection, getDocs, addDoc, showLoading,
+    doc, getDoc, updateDoc, deleteDoc,
+    currentEnv
+} from "./utils.js";
+
 import { enhanceColorSelect } from "./color-select.js";
+import { enviarEmailViaje } from "./email-sender.js";
 
 const qs = new URLSearchParams(location.search);
 const MODE = (qs.get("mode") || "").toLowerCase();
@@ -12,10 +19,160 @@ const EDIT_DNI = qs.get("dni") || "";
 const EDIT_ID = qs.get("id") || "";
 const RETURN_TO = qs.get("return") || "";
 
-
 let modalExito, modalError;
 
+const MAX_IMAGES_PER_TRIP = 2;
+let existingImages = [];
+let imagesToDelete = [];
+let pendingFiles = [];
+
+const FER_UPLOAD_BASE = "https://fletesenki.com.ar/public/uploads";
+
+function resolveImageSrc(img) {
+    if (!img) return "";
+
+    if (img.url && /^https?:\/\//i.test(img.url)) {
+        return img.url;
+    }
+
+    if (img.path) {
+        return `${FER_UPLOAD_BASE}/${img.path}`.replace(/([^:]\/)\/+/g, "$1");
+    }
+
+    if (typeof img === "string") {
+        if (/^https?:\/\//i.test(img)) return img;
+        return `${FER_UPLOAD_BASE}/${img}`.replace(/([^:]\/)\/+/g, "$1");
+    }
+
+    return "";
+}
+
+
 const DATE_Q = (qs.get("date") || "").trim(); // puede venir del FAB
+
+// =================== PREVIEW DE IMÁGENES ===================
+
+function renderTripImagesPreview() {
+    const cont = document.getElementById("tripImagesPreview");
+    const input = document.getElementById("imagenesViaje");
+    if (!cont) return;
+
+    cont.innerHTML = "";
+
+    // EXISTENTES (ya guardadas para este viaje)
+    existingImages.forEach((img, idx) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "position-relative";
+
+        const src = resolveImageSrc(img);
+
+        wrapper.innerHTML = `
+      <img src="${src}"
+           alt="Imagen del viaje"
+           style="width:80px;height:80px;object-fit:cover;border-radius:6px;">
+      <button type="button"
+              class="btn btn-sm btn-danger position-absolute top-0 end-0 btn-remove-img"
+              data-type="existing"
+              data-idx="${idx}">
+        &times;
+      </button>
+    `;
+
+        cont.appendChild(wrapper);
+    });
+
+    // NUEVAS (seleccionadas en esta sesión, aún no subidas)
+    pendingFiles.forEach((file, idx) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "position-relative";
+
+        const url = URL.createObjectURL(file);
+
+        wrapper.innerHTML = `
+      <img src="${url}"
+           alt="${file.name}"
+           title="${file.name}"
+           style="width:80px;height:80px;object-fit:cover;border-radius:6px;">
+      <button type="button"
+              class="btn btn-sm btn-danger position-absolute top-0 end-0 btn-remove-img"
+              data-type="pending"
+              data-idx="${idx}">
+        &times;
+      </button>
+    `;
+
+        cont.appendChild(wrapper);
+    });
+
+    // Deshabilitar input si ya llegamos al límite
+    const total = existingImages.length + pendingFiles.length;
+    if (input) {
+        input.disabled = total >= MAX_IMAGES_PER_TRIP;
+        if (input.disabled) input.value = "";
+    }
+}
+
+
+document.getElementById("tripImagesPreview")?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".btn-remove-img");
+    if (!btn) return;
+
+    const type = btn.dataset.type;
+    const idx = Number(btn.dataset.idx);
+
+    if (type === "existing") {
+        const img = existingImages[idx];
+        if (img) {
+            imagesToDelete.push(img);   // el usuario decidió sacarla del viaje
+            existingImages.splice(idx, 1);
+        }
+    } else if (type === "pending") {
+        pendingFiles.splice(idx, 1);
+    }
+
+    renderTripImagesPreview();
+});
+
+function showImagesLimitModal(freeSlots) {
+    const err = document.getElementById("errorDetails");
+    if (err) {
+        err.textContent = freeSlots > 0
+            ? `Solo podés subir ${freeSlots} imagen(es) más para este viaje.`
+            : `Ya alcanzaste el máximo de ${MAX_IMAGES_PER_TRIP} imágenes para este viaje. Eliminá alguna si querés cambiarla.`;
+    }
+    modalError?.show();
+}
+
+const imgInput = document.getElementById("imagenesViaje");
+if (imgInput) {
+    imgInput.addEventListener("change", () => {
+        const files = Array.from(imgInput.files || []);
+        if (!files.length) return;
+
+        const totalActual = existingImages.length + pendingFiles.length;
+        const freeSlots = MAX_IMAGES_PER_TRIP - totalActual;
+
+        if (freeSlots <= 0) {
+            imgInput.value = "";
+            showImagesLimitModal(0);
+            return;
+        }
+
+        const aceptados = files.slice(0, freeSlots);
+        const rechazados = files.length - aceptados.length;
+
+        pendingFiles.push(...aceptados);
+        imgInput.value = "";
+
+        renderTripImagesPreview();
+
+        if (rechazados > 0) {
+            showImagesLimitModal(freeSlots);
+        }
+    });
+}
+
+// =================== FECHAS ===================
 
 function todayYMD() {
     const d = new Date();
@@ -25,7 +182,7 @@ function todayYMD() {
     return `${y}-${m}-${day}`;
 }
 
-// Acepta "YYYY-MM-DD" o "dd/mm/yyyy" y devuelve YYYY-MM-DD; si no matchea, devuelve ""
+// Acepta "YYYY-MM-DD" o "dd/mm/yyyy" y devuelve YYYY-MM-DD
 function asYMD(s = "") {
     if (!s) return "";
     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
@@ -37,8 +194,57 @@ function asYMD(s = "") {
     return "";
 }
 
+// =================== UPLOAD A FEROZO ===================
 
-// ------------------- control de navegación segura -------------------
+const UPLOAD_ENDPOINT = "https://fletesenki.com.ar/public/upload.php";
+
+/**
+ * Sube las imágenes pendientes del viaje a Ferozo
+ * y devuelve [{ url, path }, ...] para guardar en Firestore.
+ */
+async function uploadTripImages(fleteroId, fechaYmd) {
+    if (!pendingFiles.length) return [];
+
+    const env = (currentEnv || "prod").toLowerCase(); // "dev" o "prod"
+
+    const uploads = pendingFiles.map(async (file) => {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("env", env);           // separa /uploads/dev vs /uploads/prod
+        fd.append("type", "viajes");     // carpeta "viajes"
+        fd.append("fletero", fleteroId);
+        fd.append("fecha", fechaYmd);
+
+        const res = await fetch(UPLOAD_ENDPOINT, {
+            method: "POST",
+            body: fd,
+        });
+
+        let data = {};
+        try {
+            data = await res.json();
+        } catch {
+            throw new Error("Respuesta inválida del servidor de archivos.");
+        }
+
+        if (!res.ok || !data.ok) {
+            throw new Error(data.error || "Error al subir imagen.");
+        }
+
+        if (!data.url || !data.path) {
+            throw new Error("El servidor no devolvió url/path de la imagen.");
+        }
+
+        return { url: data.url, path: data.path };
+    });
+
+    const result = await Promise.all(uploads);
+    pendingFiles = [];
+    return result;
+}
+
+// =================== CONTROL DE NAVEGACIÓN ===================
+
 let isDirty = false;
 let allowNav = false;
 let HYDRATING = true;            // evita marcar dirty mientras precargamos
@@ -57,16 +263,17 @@ function allowSafeNavigation() {
 
 document.getElementById("new-trip-form")?.addEventListener("input", markDirty);
 
-// ----------------------- armar href para agenda -----------------------
+// =================== AGENDA HREF ===================
+
 function setAgendaHref(linkEl, { dni, date, fallbackPath = "schedule.html" }) {
-    const baseUrl = RETURN_TO ? new URL(RETURN_TO, location.origin)
-        : new URL(fallbackPath, location.origin);
-    if (dni) baseUrl.searchParams.set("dni", dni);
-    if (date) baseUrl.searchParams.set("date", date);
-    linkEl.href = baseUrl.pathname + "?" + baseUrl.searchParams.toString();
+    const url = new URL(fallbackPath.replace(/^\/+/, ""), document.baseURI);
+    if (dni) url.searchParams.set("dni", dni);
+    if (date) url.searchParams.set("date", date);
+    linkEl.href = url.pathname + "?" + url.searchParams.toString();
 }
 
-// ----------------------- helpers de fecha -----------------------
+// =================== HELPERS FECHA ===================
+
 function ymdOf(d) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -85,7 +292,8 @@ function setFormEnabled(enabled) {
         .forEach(el => el.disabled = !enabled);
 }
 
-/* -------------------- hidratar select fletero ------------------- */
+// =================== SELECT FLETERO ===================
+
 async function hydrateSelectFleteroForForm() {
     const select = document.getElementById("fletero");
     if (!select) return;
@@ -114,7 +322,7 @@ async function hydrateSelectFleteroForForm() {
                 select.querySelectorAll("option").forEach(o => o.selected = (o.value === dni));
                 select.dispatchEvent(new Event("change", { bubbles: true }));
                 select.setCustomValidity("");
-                if (!HYDRATING) isDirty = true; // sólo cuenta cuando lo cambia el usuario
+                if (!HYDRATING) isDirty = true;
             }
         });
 
@@ -132,7 +340,8 @@ function setRadioByValue(name, value) {
         .forEach(r => r.checked = (r.value === (value || "")));
 }
 
-// -------------------- helpers de snapshot de form -------------------
+// =================== SNAPSHOT FORM ===================
+
 function val(id) { return (document.getElementById(id)?.value ?? "").trim(); }
 function checkedVal(name) { return document.querySelector(`input[name="${name}"]:checked`)?.value || ""; }
 
@@ -161,7 +370,8 @@ function getFormState() {
 }
 function shallowEqual(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
 
-// Carga el doc de Firestore y prellena el form
+// =================== CARGA EN MODO EDIT ===================
+
 async function loadEditIfNeeded() {
     if (MODE !== "edit" || !EDIT_DNI || !EDIT_ID) return;
 
@@ -179,7 +389,6 @@ async function loadEditIfNeeded() {
     if (selFletero) {
         selFletero.value = EDIT_DNI;
         selFletero.querySelectorAll("option").forEach(o => o.selected = (o.value === EDIT_DNI));
-        // queda habilitado para poder reasignar
     }
 
     setFormEnabled(false);
@@ -192,6 +401,11 @@ async function loadEditIfNeeded() {
         const v = snap.data() || {};
         const c = v.cliente || {};
         const a = v.ayudantes || {};
+
+        existingImages = Array.isArray(v.imagenes) ? v.imagenes : [];
+        imagesToDelete = [];
+        pendingFiles = [];
+        renderTripImagesPreview();
 
         setVal("#cliente", c.nombre || "");
         setVal("#telefono", c.telefono || "");
@@ -208,7 +422,6 @@ async function loadEditIfNeeded() {
         setVal("#cantAyudantes", a.cantidad ?? "");
         setVal("#precioAyudante", a.precio ?? "");
 
-        // snapshot original para comparar
         ORIGINAL_FORM_STATE = getFormState();
         isDirty = false;
 
@@ -218,17 +431,17 @@ async function loadEditIfNeeded() {
     } finally {
         if (submitBtn) submitBtn.textContent = "Actualizar viaje";
         setFormEnabled(true);
-        HYDRATING = false; // a partir de acá, los cambios del usuario cuentan
+        HYDRATING = false;
     }
 
-    // Botón Cancelar → volver a la pantalla de origen (si vino en la URL)
     if (RETURN_TO) {
-        const cancelBtn = document.querySelector('.form-actions-sticky .btn.btn-outline-danger');
+        const cancelBtn = document.querySelector(".form-actions-sticky .btn.btn-outline-danger");
         if (cancelBtn) cancelBtn.onclick = () => { allowSafeNavigation(); location.href = RETURN_TO; };
     }
 }
 
-/* ------------------------- modales ------------------------------ */
+// =================== MODALES ===================
+
 function bootModals() {
     const exEl = document.getElementById("modalSaveSuccess");
     const erEl = document.getElementById("modalSaveError");
@@ -239,20 +452,20 @@ function bootModals() {
         modalError = window.bootstrap.Modal.getOrCreateInstance(erEl);
     }
 
-    // Redirección al tocar “Ver agenda”
     const link = document.getElementById("linkVerAgenda");
     if (link) {
         link.addEventListener("click", (e) => {
             e.preventDefault();
             const href = link.getAttribute("href");
-            allowSafeNavigation();     // <- desactiva el warning
+            allowSafeNavigation();
             modalExito?.hide();
             setTimeout(() => { location.href = href; }, 150);
         });
     }
 }
 
-/* -------------------- boot cuando el DOM esté ------------------- */
+// =================== BOOT ===================
+
 (function readyThenBoot() {
     const run = async () => {
         const isEdit = MODE === "edit";
@@ -262,7 +475,6 @@ function bootModals() {
             await hydrateSelectFleteroForForm();
 
             if (MODE !== "edit") {
-                // Si vino ?date= usa esa; si no, usa hoy
                 const ymd = asYMD(DATE_Q) || todayYMD();
                 const fechaInput = document.getElementById("fecha");
                 if (fechaInput) fechaInput.value = ymd;
@@ -270,7 +482,7 @@ function bootModals() {
             await loadEditIfNeeded();
 
         } finally {
-            if (!isEdit) HYDRATING = false; // en create, cerramos hidratación acá
+            if (!isEdit) HYDRATING = false;
             if (isEdit) showLoading(false);
         }
     };
@@ -282,14 +494,12 @@ function bootModals() {
     }
 })();
 
-/* --------------------------- submit ----------------------------- */
-const form = document.getElementById("new-trip-form");
+// =================== SUBMIT ===================
 
-// marcar el form como sucio ante cambios
+const form = document.getElementById("new-trip-form");
 form?.addEventListener("input", markDirty);
 
 form.addEventListener("submit", async (e) => {
-    // Validación de fletero (en create). En edit está deshabilitado, pero con value cargado.
     const sel = document.getElementById("fletero");
     if (!sel.value && sel.dataset?.value) sel.value = sel.dataset.value;
 
@@ -315,11 +525,10 @@ form.addEventListener("submit", async (e) => {
   `;
 
     try {
-        // Armado de payload común
         const viaje = {
             cliente: {
                 horario: document.getElementById("hora").value,
-                fecha: document.getElementById("fecha").value, // YYYY-MM-DD
+                fecha: document.getElementById("fecha").value,
                 nombre: document.getElementById("cliente").value,
                 telefono: document.getElementById("telefono").value,
                 tipoServicio: document.querySelector('input[name="tipoServicio"]:checked')?.value || "",
@@ -337,8 +546,7 @@ form.addEventListener("submit", async (e) => {
             }
         };
 
-        // Denormalizaciones
-        const fechaYMD = document.getElementById("fecha").value; // "YYYY-MM-DD"
+        const fechaYMD = document.getElementById("fecha").value;
         const [Y, M] = fechaYMD.split("-").map(Number);
 
         viaje.fecha = fechaYMD;
@@ -351,7 +559,9 @@ form.addEventListener("submit", async (e) => {
             const dow = dt.getDay();
             const delta = (dow === 0 ? -6 : 1 - dow);
             dt.setDate(dt.getDate() + delta);
-            const y2 = dt.getFullYear(), m2 = String(dt.getMonth() + 1).padStart(2, "0"), d2 = String(dt.getDate()).padStart(2, "0");
+            const y2 = dt.getFullYear(),
+                m2 = String(dt.getMonth() + 1).padStart(2, "0"),
+                d2 = String(dt.getDate()).padStart(2, "0");
             v.weekStart = `${y2}-${m2}-${d2}`;
         })(viaje);
         viaje.importe = Number(document.getElementById("precioServicio").value) || 0;
@@ -361,15 +571,14 @@ form.addEventListener("submit", async (e) => {
             viaje.when = new Date(y, m - 1, d, h || 0, mm || 0).toISOString();
         }
 
-        // Subtítulo del modal
         const parts = [viaje.cliente.nombre, viaje.cliente.fecha, viaje.cliente.horario].filter(Boolean);
         const subt = document.getElementById("successSubtitle");
         if (subt) subt.textContent = parts.join(" · ");
 
         if (MODE === "edit" && EDIT_DNI && EDIT_ID) {
-            // Comparación real con snapshot: ¿hay cambios?
             const currentState = getFormState();
-            if (ORIGINAL_FORM_STATE && shallowEqual(currentState, ORIGINAL_FORM_STATE)) {
+            if (ORIGINAL_FORM_STATE && shallowEqual(currentState, ORIGINAL_FORM_STATE) &&
+                !pendingFiles.length && !imagesToDelete.length) {
                 const err = document.getElementById("errorDetails");
                 if (err) err.textContent = "No hay cambios por guardar.";
                 modalError?.show();
@@ -379,14 +588,33 @@ form.addEventListener("submit", async (e) => {
                 return;
             }
 
-            // Fletero destino (puede ser distinto al original)
             const fleteroDest = document.getElementById("fletero")?.value || EDIT_DNI;
 
+            // 1) manejar imágenes (se quitan de existingImages al click, y se agregan las nuevas)
+            const nuevasImagenes = await uploadTripImages(fleteroDest, fechaYMD);
+            const finalImagenes = [...existingImages, ...nuevasImagenes];
+            viaje.imagenes = finalImagenes;
+
             if (fleteroDest !== EDIT_DNI) {
-                // --- REASIGNAR: crear en nueva colección y borrar el viejo ---
+                // REASIGNAR
                 const newColl = collection(db, "viajes", fleteroDest, "items");
-                await addDoc(newColl, viaje); // nuevo ID
+                await addDoc(newColl, viaje);
                 await deleteDoc(doc(db, "viajes", EDIT_DNI, "items", EDIT_ID));
+
+                try {
+                    const fleteroDoc = await getDoc(doc(db, "fleteros", fleteroDest));
+                    if (fleteroDoc.exists()) {
+                        const fleteroData = fleteroDoc.data();
+                        await enviarEmailViaje(viaje, fleteroData, "nuevo");
+                    }
+                } catch (emailError) {
+                    console.warn("No se pudo enviar el email, pero el viaje se reasignó:", emailError);
+                }
+
+                existingImages = finalImagenes;
+                imagesToDelete = [];
+                pendingFiles = [];
+                renderTripImagesPreview();
 
                 isDirty = false;
                 const modalTitle = document.querySelector("#modalSaveSuccess .modal-title");
@@ -396,11 +624,25 @@ form.addEventListener("submit", async (e) => {
                 if (link) setAgendaHref(link, { dni: fleteroDest, date: viaje.fecha });
 
                 modalExito?.show();
-
             } else {
-                // --- ACTUALIZAR en el mismo fletero ---
+                // ACTUALIZAR MISMO FLETERO
                 const ref = doc(db, "viajes", EDIT_DNI, "items", EDIT_ID);
                 await updateDoc(ref, viaje);
+
+                existingImages = finalImagenes;
+                imagesToDelete = [];
+                pendingFiles = [];
+                renderTripImagesPreview();
+
+                try {
+                    const fleteroDoc = await getDoc(doc(db, "fleteros", EDIT_DNI));
+                    if (fleteroDoc.exists()) {
+                        const fleteroData = fleteroDoc.data();
+                        await enviarEmailViaje(viaje, fleteroData, "modificado");
+                    }
+                } catch (emailError) {
+                    console.warn("No se pudo enviar el email, pero el viaje se actualizó:", emailError);
+                }
 
                 isDirty = false;
                 const modalTitle = document.querySelector("#modalSaveSuccess .modal-title");
@@ -414,9 +656,28 @@ form.addEventListener("submit", async (e) => {
         } else {
             // CREAR
             const fletero = document.getElementById("fletero").value;
+
+            const nuevasImagenes = await uploadTripImages(fletero, fechaYMD);
+            if (nuevasImagenes.length) viaje.imagenes = nuevasImagenes;
+
             const ref = collection(db, "viajes", fletero, "items");
             viaje.createdAt = new Date().toISOString();
             await addDoc(ref, viaje);
+
+            existingImages = viaje.imagenes || [];
+            pendingFiles = [];
+            imagesToDelete = [];
+            renderTripImagesPreview();
+
+            try {
+                const fleteroDoc = await getDoc(doc(db, "fleteros", fletero));
+                if (fleteroDoc.exists()) {
+                    const fleteroData = fleteroDoc.data();
+                    await enviarEmailViaje(viaje, fleteroData, "nuevo");
+                }
+            } catch (emailError) {
+                console.warn("No se pudo enviar el email, pero el viaje se guardó:", emailError);
+            }
 
             isDirty = false;
 
@@ -425,6 +686,8 @@ form.addEventListener("submit", async (e) => {
 
             modalExito?.show();
             form.reset();
+            existingImages = [];
+            renderTripImagesPreview();
         }
 
     } catch (error) {

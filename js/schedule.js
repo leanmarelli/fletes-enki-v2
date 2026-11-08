@@ -345,6 +345,30 @@ function tipoToClass(t = "") {
   return "badge-carga";
 }
 
+const FER_UPLOAD_BASE = "https://fletesenki.com.ar/public/uploads";
+
+function resolveImageSrc(img) {
+  if (!img) return "";
+
+  // si ya viene con http/https, usarlo directo
+  if (img.url && /^https?:\/\//i.test(img.url)) return img.url;
+
+  // path relativo devuelto por PHP: "dev/viajes/...."
+  if (img.path) {
+    return `${FER_UPLOAD_BASE}/${img.path}`.replace(/([^:]\/)\/+/g, "$1");
+  }
+
+  // fallback por si alguna vez guardaste un string suelto
+  if (typeof img === "string") {
+    if (/^https?:\/\//i.test(img)) return img;
+    return `${FER_UPLOAD_BASE}/${img}`.replace(/([^:]\/)\/+/g, "$1");
+  }
+
+  return "";
+}
+
+
+
 // ----------------------------------------------------
 // Navegador de días
 // ----------------------------------------------------
@@ -440,6 +464,7 @@ function sortPorHorario(arr) {
 function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin = false) {
   const cont = document.getElementById("viajes-dia");
   cont.innerHTML = "";
+
   if (!viajes.length) {
     cont.innerHTML = `<div class="alert alert-warning text-center">No hay viajes para este día.</div>`;
     return;
@@ -450,6 +475,27 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
   viajes.forEach(viaje => {
     const c = viaje.cliente || {};
     const ayud = viaje.ayudantes || {};
+
+    const imagenes = Array.isArray(viaje.imagenes) ? viaje.imagenes : [];
+    const galleryHtml = imagenes.length
+      ? `
+      <small class="mb-0">Imágenes:</small>
+      <div class="d-flex flex-wrap gap-2 mb-2">
+        ${imagenes.map(img => {
+        const src = resolveImageSrc(img);
+        if (!src) return "";
+        return `
+            <img src="${src}"
+                 alt="Imagen del viaje"
+                 class="trip-img-thumb"
+                 data-full-url="${src}"
+                 style="width:72px;height:72px;object-fit:cover;border-radius:6px;cursor:zoom-in;">
+          `;
+      }).join("")}
+      </div>
+    `
+      : "";
+
 
     const color = colorHex || "#ffc107";
     const bruto = Number(c.precioServicio) || 0;
@@ -524,6 +570,8 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
             <small class="mb-0">Peajes:</small>
             <div class="mb-1"><b>${c.peajes || ""}</b></div>
 
+            ${galleryHtml}
+
             ${helpersBody}
           </div>
 
@@ -554,6 +602,8 @@ function renderViajes(viajes, colorHex, feePct = 0, countryIso = "AR", isAdmin =
 
   cont.appendChild(frag);
 }
+
+
 
 // ----------------------------------------------------
 // Controlador principal
@@ -638,7 +688,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  
+
   // modal eliminar (si existe en el DOM)
   const modalEl = document.getElementById("modalEliminarViaje");
   if (modalEl && window.bootstrap) modalEliminar = new bootstrap.Modal(modalEl);
@@ -665,8 +715,48 @@ document.addEventListener("DOMContentLoaded", () => {
 // ----------------------------------------------------
 const contViajes = document.getElementById("viajes-dia");
 
+function openImageLightbox(url) {
+  let lb = document.getElementById("tripImageLightbox");
+  if (!lb) {
+    lb = document.createElement("div");
+    lb.id = "tripImageLightbox";
+    lb.style.position = "fixed";
+    lb.style.inset = "0";
+    lb.style.background = "rgba(0,0,0,0.85)";
+    lb.style.display = "none";
+    lb.style.alignItems = "center";
+    lb.style.justifyContent = "center";
+    lb.style.zIndex = "9999";
+    lb.style.cursor = "zoom-out";
+    lb.innerHTML = `
+      <img id="tripImageLightboxImg"
+           src=""
+           alt="Imagen del viaje"
+           style="max-width:100%;max-height:100%;border-radius:12px;box-shadow:0 0 24px rgba(0,0,0,0.7);">
+    `;
+    lb.addEventListener("click", () => {
+      lb.style.display = "none";
+    });
+    document.body.appendChild(lb);
+  }
+
+  const imgEl = document.getElementById("tripImageLightboxImg");
+  if (imgEl) imgEl.src = url;
+  lb.style.display = "flex";
+}
+
+
 // Editar
 if (contViajes) {
+  // Zoom de imágenes
+  contViajes.addEventListener("click", (e) => {
+    const thumb = e.target.closest(".trip-img-thumb");
+    if (!thumb) return;
+    const url = thumb.dataset.fullUrl;
+    if (!url) return;
+    openImageLightbox(url);
+  });
+
   contViajes.addEventListener("click", (e) => {
     const btnEdit = e.target.closest(".btn-edit-trip");
     if (btnEdit) {
